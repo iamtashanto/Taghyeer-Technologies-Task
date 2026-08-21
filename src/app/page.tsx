@@ -54,10 +54,16 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <div className="ticker">
+      <div className="ticker" aria-label="Feature ticker">
         <div className="ticker-inner">
-          One-to-one clarity <b>✳</b> Group momentum <b>✳</b> Messages that
-          arrive <b>✳</b> One-to-one clarity <b>✳</b> Group momentum <b>✳</b>
+          <div className="ticker-track">
+            One-to-one clarity <b>✳</b> Group momentum <b>✳</b> Messages that
+            arrive <b>✳</b>
+          </div>
+          <div className="ticker-track" aria-hidden="true">
+            One-to-one clarity <b>✳</b> Group momentum <b>✳</b> Messages that
+            arrive <b>✳</b>
+          </div>
         </div>
       </div>
       <section className="feature-band" id="signals">

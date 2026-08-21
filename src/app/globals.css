@@ -212,7 +212,6 @@ h1 {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   overflow: hidden;
-  white-space: nowrap;
   color: var(--muted);
   font-family: "DM Mono", monospace;
   font-size: 11px;
@@ -220,9 +219,20 @@ h1 {
   letter-spacing: 0.12em;
 }
 .ticker-inner {
+  display: flex;
   width: max-content;
   padding: 16px 0;
-  animation: drift 24s linear infinite;
+  animation: drift 30s linear infinite;
+  will-change: transform;
+}
+.ticker-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 100vw;
+  justify-content: space-around;
+  gap: 40px;
 }
 .ticker b {
   margin: 0 40px;
