@@ -2,27 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Crown,
-  MessageCircle,
-  Plus,
-  Search,
-  Send,
-  UserMinus,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import {
-  api,
-  Conversation,
-  Message,
-  normalizeConversation,
-  normalizeMessage,
-  normalizeUser,
-  SOCKET_URL,
-  User,
-} from "@/lib/api";
+import { ArrowLeft, Crown, MessageCircle, Plus, Search, Send, UserMinus, UserPlus, Users } from "lucide-react";
+import { api, Conversation, Message, normalizeConversation, normalizeMessage, normalizeUser, SOCKET_URL, User } from "@/lib/api";
 
 type Session = { token: string; user: User };
 
@@ -67,19 +48,12 @@ export default function ChatPage() {
     const stored = window.localStorage.getItem("relay-session");
     if (!stored) return;
     const parsed = JSON.parse(stored) as Session;
-    api
-      .me(parsed.token)
-      .then((value) =>
-        setSession({ token: parsed.token, user: normalizeUser(value) }),
-      )
-      .catch(() => window.localStorage.removeItem("relay-session"));
+    api.me(parsed.token).then((value) => setSession({ token: parsed.token, user: normalizeUser(value) })).catch(() => window.localStorage.removeItem("relay-session"));
   }, []);
 
   useEffect(() => {
     if (!session) return;
-    refreshConversations(session.token).catch((e: Error) =>
-      setError(e.message),
-    );
+    refreshConversations(session.token).catch((e: Error) => setError(e.message));
   }, [session]);
 
   useEffect(() => {
@@ -89,11 +63,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!session || !activeId) return;
     setLoading(true);
-    api
-      .messages(activeId, session.token)
-      .then(setMessages)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+    api.messages(activeId, session.token).then(setMessages).catch((e: Error) => setError(e.message)).finally(() => setLoading(false));
   }, [activeId, session]);
 
   useEffect(() => {
@@ -106,42 +76,24 @@ export default function ChatPage() {
       setResults([]);
       return;
     }
-    const timer = window.setTimeout(
-      () =>
-        api
-          .searchUsers(query.trim(), session.token)
-          .then(setResults)
-          .catch(() => setResults([])),
-      350,
-    );
+    const timer = window.setTimeout(() => api.searchUsers(query.trim(), session.token).then(setResults).catch(() => setResults([])), 350);
     return () => window.clearTimeout(timer);
   }, [query, session]);
 
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-
     import("socket.io-client").then(({ io }) => {
       if (cancelled) return;
-      const socket = io(SOCKET_URL, {
-        auth: { token: session.token },
-        transports: ["websocket"],
-      });
+      const socket = io(SOCKET_URL, { auth: { token: session.token }, transports: ["websocket"] });
       socketRef.current = socket;
 
       socket.on("message:new", (payload: unknown) => {
         const item = payload as Record<string, unknown>;
-        const conversationId = String(
-          item.conversationId ?? item.conversation_id ?? "",
-        );
+        const conversationId = String(item.conversationId ?? item.conversation_id ?? "");
         const next = normalizeMessage(payload);
-
         if (conversationId === activeIdRef.current) {
-          setMessages((current) =>
-            current.some((message) => message.id === next.id)
-              ? current
-              : [...current, next],
-          );
+          setMessages((current) => current.some((message) => message.id === next.id) ? current : [...current, next]);
         } else {
           refreshConversations(session.token).catch(() => undefined);
         }
@@ -161,20 +113,13 @@ export default function ChatPage() {
 
   async function login(event: FormEvent) {
     event.preventDefault();
-    if (!phone.trim() || !name.trim())
-      return setError("Phone number and name are required.");
-
+    if (!phone.trim() || !name.trim()) return setError("Phone number and name are required.");
     setBusy(true);
     setError("");
-
     try {
-      const response = await api.login({
-        phone: phone.trim(),
-        name: name.trim(),
-      });
+      const response = await api.login({ phone: phone.trim(), name: name.trim() });
       const token = String(response.token ?? response.accessToken ?? "");
       if (!token) throw new Error("The API did not return a session token.");
-
       const user = normalizeUser(response.user ?? { name, phone, id: "me" });
       const nextSession = { token, user };
       window.localStorage.setItem("relay-session", JSON.stringify(nextSession));
@@ -190,22 +135,11 @@ export default function ChatPage() {
     if (!session) return;
     setBusy(true);
     setError("");
-
     try {
       const created = await api.startConversation(user.id, session.token);
       const normalized = normalizeConversation(created);
-      const next = normalized.id
-        ? normalized
-        : {
-            id: user.id,
-            name: user.name,
-            type: "direct" as const,
-            participants: [user],
-          };
-      setConversations((current) => [
-        next,
-        ...current.filter((item) => item.id !== next.id),
-      ]);
+      const next = normalized.id ? normalized : { id: user.id, name: user.name, type: "direct" as const, participants: [user] };
+      setConversations((current) => [next, ...current.filter((item) => item.id !== next.id)]);
       setActive(next);
       setQuery("");
     } catch (e) {
@@ -216,27 +150,16 @@ export default function ChatPage() {
   }
 
   function toggleMember(user: User) {
-    setGroupMembers((current) =>
-      current.some((item) => item.id === user.id)
-        ? current.filter((item) => item.id !== user.id)
-        : [...current, user],
-    );
+    setGroupMembers((current) => current.some((item) => item.id === user.id) ? current.filter((item) => item.id !== user.id) : [...current, user]);
   }
 
   async function createGroup(event: FormEvent) {
     event.preventDefault();
-    if (!session || !groupName.trim() || !groupMembers.length)
-      return setError("Add at least one person and a group name.");
-
+    if (!session || !groupName.trim() || !groupMembers.length) return setError("Add at least one person and a group name.");
     setBusy(true);
     setError("");
-
     try {
-      const created = await api.createGroup(
-        groupName.trim(),
-        groupMembers.map((item) => item.id),
-        session.token,
-      );
+      const created = await api.createGroup(groupName.trim(), groupMembers.map((item) => item.id), session.token);
       const next = normalizeConversation(created);
       setConversations((current) => [next, ...current]);
       setActive(next);
@@ -253,12 +176,9 @@ export default function ChatPage() {
 
   async function renameGroup(event: FormEvent) {
     event.preventDefault();
-    if (!session || !active || !isGroup || !isAdmin || !renameValue.trim())
-      return;
-
+    if (!session || !active || !isGroup || !isAdmin || !renameValue.trim()) return;
     setBusy(true);
     setError("");
-
     try {
       await api.renameGroup(active.id, renameValue.trim(), session.token);
       await refreshConversations(session.token);
@@ -274,7 +194,6 @@ export default function ChatPage() {
     if (!session || !active || !isGroup || !isAdmin) return;
     setBusy(true);
     setError("");
-
     try {
       await api.addParticipants(active.id, [user.id], session.token);
       await refreshConversations(session.token);
@@ -289,7 +208,6 @@ export default function ChatPage() {
     if (!session || !active || !isGroup || !isAdmin) return;
     setBusy(true);
     setError("");
-
     try {
       await api.removeParticipant(active.id, user.id, session.token);
       await refreshConversations(session.token);
@@ -304,7 +222,6 @@ export default function ChatPage() {
     if (!session || !active || !isGroup || !isAdmin) return;
     setBusy(true);
     setError("");
-
     try {
       await api.promoteAdmin(active.id, user.id, session.token);
       await refreshConversations(session.token);
@@ -319,7 +236,6 @@ export default function ChatPage() {
     if (!session || !active || !isGroup) return;
     setBusy(true);
     setError("");
-
     try {
       await api.removeParticipant(active.id, session.user.id, session.token);
       const next = conversations.filter((item) => item.id !== active.id);
@@ -336,29 +252,16 @@ export default function ChatPage() {
   async function send(event: FormEvent) {
     event.preventDefault();
     if (!session || !active || !text.trim() || busy) return;
-
     const value = text.trim();
     setText("");
     setBusy(true);
-
-    const optimistic = normalizeMessage({
-      id: crypto.randomUUID(),
-      text: value,
-      senderId: session.user.id,
-      createdAt: new Date().toISOString(),
-    });
+    const optimistic = normalizeMessage({ id: crypto.randomUUID(), text: value, senderId: session.user.id, createdAt: new Date().toISOString() });
     setMessages((current) => [...current, optimistic]);
-
     try {
       const sent = await api.sendMessage(active.id, value, session.token);
-      setMessages((current) => [
-        ...current.filter((item) => item.id !== optimistic.id),
-        normalizeMessage(sent),
-      ]);
+      setMessages((current) => [...current.filter((item) => item.id !== optimistic.id), normalizeMessage(sent)]);
     } catch (e) {
-      setMessages((current) =>
-        current.filter((item) => item.id !== optimistic.id),
-      );
+      setMessages((current) => current.filter((item) => item.id !== optimistic.id));
       setText(value);
       setError((e as Error).message);
     } finally {
@@ -374,293 +277,98 @@ export default function ChatPage() {
 
   if (!session) {
     return (
-      <main className="login-page">
-        <form className="login-panel" onSubmit={login}>
-          <Link className="logo" href="/">
-            <span className="logo-mark">r/</span> relay
-          </Link>
-          <h1>Make room for a good conversation.</h1>
-          <p>
-            Sign in with your phone number. New numbers are registered
-            automatically.
-          </p>
-          {error && <div className="error-banner">{error}</div>}
-
-          <label className="form-field">
-            Your name
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Ada Lovelace"
-            />
-          </label>
-
-          <label className="form-field">
-            Phone number
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+1 555 123 4567"
-              type="tel"
-            />
-          </label>
-
-          <button className="button-primary" disabled={busy}>
-            {busy ? "Connecting..." : "Enter workspace"}{" "}
-            <ArrowLeft size={16} style={{ transform: "rotate(180deg)" }} />
-          </button>
+      <main className="grid min-h-screen place-items-center bg-paper p-6">
+        <form className="w-[min(440px,100%)] border border-line bg-cream p-[42px] shadow-relay max-[500px]:p-[28px]" onSubmit={login}>
+          <Link className="flex items-center gap-[10px] text-[18px] font-extrabold tracking-[-0.04em]" href="/"><span className="grid h-[31px] w-[31px] place-items-center rounded-[10px_10px_10px_3px] bg-ink font-dmmono text-[13px] text-lime">r/</span> relay</Link>
+          <h1 className="mt-[50px] mb-[12px] max-w-[670px] text-[42px] leading-[0.96] tracking-[-0.075em]">Make room for a good conversation.</h1>
+          <p className="text-[13px] leading-[1.7] text-muted">Sign in with your phone number. New numbers are registered automatically.</p>
+          {error && <div className="mt-[15px] mx-[25px] p-[12px_15px] border border-[#f3b8ad] rounded-[9px] text-[#9a392c] bg-[#fff1ee] text-[12px]">{error}</div>}
+          <label className="my-[23px] block font-dmmono text-[10px] uppercase tracking-[0.08em] text-muted">Your name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ada Lovelace" className="mt-[9px] w-full border-0 border-b border-[#b9c0b7] bg-transparent p-[14px_0] font-manrope text-[16px] text-ink outline-none" /></label>
+          <label className="my-[23px] block font-dmmono text-[10px] uppercase tracking-[0.08em] text-muted">Phone number<input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 555 123 4567" type="tel" className="mt-[9px] w-full border-0 border-b border-[#b9c0b7] bg-transparent p-[14px_0] font-manrope text-[16px] text-ink outline-none" /></label>
+          <button className="mt-[12px] inline-flex w-full items-center justify-center gap-[9px] rounded-full bg-lime px-[20px] py-[15px] text-[14px] font-extrabold text-ink shadow-[0_8px_20px_rgba(143,170,34,0.18)]" disabled={busy}>{busy ? "Connecting..." : "Enter workspace"}<ArrowLeft size={16} style={{ transform: "rotate(180deg)" }} /></button>
         </form>
       </main>
     );
   }
 
   return (
-    <main className="chat-shell">
-      <aside className="sidebar">
-        <Link className="logo" href="/">
-          <span className="logo-mark">r/</span> relay
-        </Link>
+    <main className="grid min-h-screen grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1">
+      <aside className="flex flex-col bg-ink px-[18px] pt-[25px] pb-[25px] text-cream max-[800px]:min-h-0 max-[800px]:p-[17px]">
+        <Link className="mx-[10px] mb-[42px] flex items-center gap-[10px] text-[18px] font-extrabold tracking-[-0.04em] max-[800px]:mb-[20px]" href="/"><span className="grid h-[31px] w-[31px] place-items-center rounded-[10px_10px_10px_3px] bg-lime font-dmmono text-[13px] text-ink">r/</span> relay</Link>
 
-        <div className="sidebar-label group-heading">
-          Conversations
-          <button
-            className="icon-button"
-            onClick={() => setGroupOpen((open) => !open)}
-            aria-label="Create group"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
+        <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d] max-[800px]:hidden">Conversations<button className="grid h-[25px] w-[25px] place-items-center rounded-[7px] border border-[#405049] bg-transparent text-lime" onClick={() => setGroupOpen((open) => !open)} aria-label="Create group"><Plus size={14} /></button></div>
 
-        <div className="search-box">
-          <Search size={14} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find someone..."
-          />
-        </div>
+        <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a] max-[800px]:hidden"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find someone..." className="w-full border-0 bg-transparent text-[12px] text-cream outline-none" /></div>
 
         {groupOpen && (
-          <form className="group-form" onSubmit={createGroup}>
-            <input
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
-              placeholder="Group name"
-            />
-            <small>{groupMembers.length} selected</small>
-            <button className="button-primary" disabled={busy}>
-              Create group
-            </button>
+          <form className="mx-[4px] mb-[15px] grid gap-[8px] rounded-[10px] border border-[#3b4842] bg-[#23312c] p-[12px]" onSubmit={createGroup}>
+            <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" className="w-full rounded-[6px] border border-[#506058] bg-transparent p-[8px] text-[11px] text-cream outline-none" />
+            <small className="text-[10px] text-[#9daa9f]">{groupMembers.length} selected</small>
+            <button className="inline-flex items-center justify-center rounded-[7px] bg-lime p-[9px] text-[11px] font-extrabold text-ink" disabled={busy}>Create group</button>
           </form>
         )}
 
         {query && (
-          <div className="conversation-list">
-            {results.length ? (
-              results.map((user) => (
-                <button
-                  className={`conversation ${groupMembers.some((member) => member.id === user.id) ? "active" : ""}`}
-                  key={user.id}
-                  onClick={() =>
-                    groupOpen ? toggleMember(user) : openDirect(user)
-                  }
-                >
-                  <span className="avatar">
-                    {user.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="conversation-copy">
-                    <span className="conversation-name">{user.name}</span>
-                    <span className="conversation-preview">
-                      {groupOpen &&
-                      groupMembers.some((member) => member.id === user.id)
-                        ? "Added to group"
-                        : (user.phone ?? "Start a conversation")}
-                    </span>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="loading">No people found</div>
-            )}
+          <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
+            {results.length ? results.map((user) => (
+              <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${groupMembers.some((member) => member.id === user.id) ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={user.id} onClick={() => groupOpen ? toggleMember(user) : openDirect(user)}>
+                <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{user.name.slice(0, 1).toUpperCase()}</span>
+                <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{user.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{groupOpen && groupMembers.some((member) => member.id === user.id) ? "Added to group" : (user.phone ?? "Start a conversation")}</span></span>
+              </button>
+            )) : <div className="p-[40px] text-center font-dmmono text-[11px] text-muted">No people found</div>}
           </div>
         )}
 
-        <div className="conversation-list">
+        <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
           {conversations.map((item) => (
-            <button
-              className={`conversation ${active?.id === item.id ? "active" : ""}`}
-              key={item.id}
-              onClick={() => {
-                shouldStickToBottom.current = true;
-                setActive(item);
-              }}
-            >
-              <span className="avatar">
-                {item.type === "group" ? (
-                  <Users size={15} />
-                ) : (
-                  item.name.slice(0, 1).toUpperCase()
-                )}
-              </span>
-              <span className="conversation-copy">
-                <span className="conversation-name">{item.name}</span>
-                <span className="conversation-preview">
-                  {item.lastMessage?.text ?? "No messages yet"}
-                </span>
-              </span>
+            <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
+              <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}</span>
+              <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{item.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{item.lastMessage?.text ?? "No messages yet"}</span></span>
             </button>
           ))}
         </div>
 
-        <div className="user-chip">
-          <span className="avatar">
-            {session.user.name.slice(0, 1).toUpperCase()}
-          </span>
-          <span>
-            <b>{session.user.name}</b>
-            <small onClick={logout} style={{ cursor: "pointer" }}>
-              Sign out
-            </small>
-          </span>
+        <div className="mt-auto flex items-center gap-[10px] border-t border-[#35423d] p-[15px_10px_5px] max-[800px]:hidden">
+          <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{session.user.name.slice(0, 1).toUpperCase()}</span>
+          <span><b>{session.user.name}</b><small onClick={logout} style={{ cursor: "pointer" }} className="mt-[3px] block text-[10px] text-[#8c9991]">Sign out</small></span>
         </div>
       </aside>
 
-      <section className="chat-main">
-        <header className="chat-header">
+      <section className="flex min-w-0 flex-col">
+        <header className="flex min-h-[82px] items-center justify-between border-b border-line p-[16px_34px] max-[800px]:p-[15px_18px]">
           {active ? (
-            <div className="chat-title">
-              <span className="avatar">
-                {active.type === "group" ? (
-                  <Users size={15} />
-                ) : (
-                  active.name.slice(0, 1).toUpperCase()
-                )}
-              </span>
-              <div>
-                <h1>{active.name}</h1>
-                <p>
-                  {active.type === "group"
-                    ? `${active.participants.length || "Several"} participants`
-                    : "Direct conversation"}
-                </p>
-              </div>
-            </div>
+            <div className="flex items-center gap-[13px]"><span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{active.type === "group" ? <Users size={15} /> : active.name.slice(0, 1).toUpperCase()}</span><div><h1 className="m-0 max-w-none text-[18px] tracking-[-0.04em]">{active.name}</h1><p className="mt-[4px] mb-0 text-[11px] text-muted">{active.type === "group" ? `${active.participants.length || "Several"} participants` : "Direct conversation"}</p></div></div>
           ) : (
-            <div className="chat-title">
-              <span className="avatar">
-                <MessageCircle size={15} />
-              </span>
-              <div>
-                <h1>Your workspace</h1>
-                <p>Select a conversation to begin</p>
-              </div>
-            </div>
+            <div className="flex items-center gap-[13px]"><span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime"><MessageCircle size={15} /></span><div><h1 className="m-0 max-w-none text-[18px] tracking-[-0.04em]">Your workspace</h1><p className="mt-[4px] mb-0 text-[11px] text-muted">Select a conversation to begin</p></div></div>
           )}
-          <div className="live-status">
-            <span /> live updates
-          </div>
+          <div className="flex items-center gap-[7px] font-dmmono text-[10px] uppercase text-teal"><span className="h-[6px] w-[6px] rounded-full bg-[#62bc78] shadow-[0_0_0_4px_#e1f2e2]" /> live updates</div>
         </header>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && <div className="mt-[15px] mx-[25px] p-[12px_15px] border border-[#f3b8ad] rounded-[9px] text-[#9a392c] bg-[#fff1ee] text-[12px]">{error}</div>}
 
         {active && isGroup && (
-          <div className="group-admin-strip">
-            <form onSubmit={renameGroup} className="group-inline-form">
-              <input
-                placeholder="Rename group"
-                value={renameValue}
-                onChange={(event) => setRenameValue(event.target.value)}
-                disabled={!isAdmin || busy}
-              />
-              <button
-                type="submit"
-                className="mini-btn"
-                disabled={!isAdmin || !renameValue.trim() || busy}
-              >
-                Rename
-              </button>
-            </form>
-
-            {isAdmin && manageTarget && (
-              <div className="group-actions">
-                <button
-                  className="mini-btn"
-                  onClick={() => addToGroup(manageTarget)}
-                  disabled={busy}
-                >
-                  <UserPlus size={12} /> Add
-                </button>
-                <button
-                  className="mini-btn"
-                  onClick={() => removeFromGroup(manageTarget)}
-                  disabled={busy}
-                >
-                  <UserMinus size={12} /> Remove
-                </button>
-                <button
-                  className="mini-btn"
-                  onClick={() => promoteToAdmin(manageTarget)}
-                  disabled={busy}
-                >
-                  <Crown size={12} /> Promote
-                </button>
-              </div>
-            )}
-
-            <button
-              className="mini-btn danger"
-              onClick={leaveGroup}
-              disabled={busy}
-            >
-              Leave group
-            </button>
+          <div className="flex flex-wrap gap-[10px] border-b border-line bg-[#f2f3ee] p-[12px_20px]">
+            <form onSubmit={renameGroup} className="flex items-center gap-[8px]"><input placeholder="Rename group" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} disabled={!isAdmin || busy} className="h-[32px] rounded-[8px] border border-[#c8cec2] bg-white px-[10px] text-[12px]" /><button type="submit" className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" disabled={!isAdmin || !renameValue.trim() || busy}>Rename</button></form>
+            {isAdmin && manageTarget && (<div className="flex gap-[8px]"><button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" onClick={() => addToGroup(manageTarget)} disabled={busy}><UserPlus size={12} /> Add</button><button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" onClick={() => removeFromGroup(manageTarget)} disabled={busy}><UserMinus size={12} /> Remove</button><button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" onClick={() => promoteToAdmin(manageTarget)} disabled={busy}><Crown size={12} /> Promote</button></div>)}
+            <button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#eab0a4] bg-[#fff4f1] px-[10px] text-[11px] font-bold text-[#9f3f31]" onClick={leaveGroup} disabled={busy}>Leave group</button>
           </div>
         )}
 
-        <div
-          className="messages"
-          onScroll={(event) => {
-            const element = event.currentTarget;
-            shouldStickToBottom.current =
-              element.scrollHeight - element.scrollTop - element.clientHeight <
-              80;
-          }}
-        >
+        <div className="relative flex-1 overflow-auto p-[30px_clamp(20px,8vw,130px)] max-[800px]:px-[18px]" onScroll={(event) => { const element = event.currentTarget; shouldStickToBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80; }}>
           {!active ? (
-            <div className="empty-state">
-              <strong>A quiet inbox, for now.</strong>Search for someone to
-              start a new thread.
-            </div>
+            <div className="m-auto text-center text-muted"><strong className="mb-[8px] block text-[18px] text-ink">A quiet inbox, for now.</strong>Search for someone to start a new thread.</div>
           ) : loading ? (
-            <div className="loading">Loading conversation...</div>
+            <div className="p-[40px] text-center font-dmmono text-[11px] text-muted">Loading conversation...</div>
           ) : messages.length ? (
             <>
               {messages.map((message) => {
-                const own =
-                  message.senderId === session.user.id ||
-                  message.senderId === "me";
+                const own = message.senderId === session.user.id || message.senderId === "me";
                 return (
-                  <div
-                    className={`message-row ${own ? "own" : ""}`}
-                    key={message.id}
-                    onClick={() =>
-                      !own && message.sender && setManageTarget(message.sender)
-                    }
-                  >
-                    <article className="message-bubble">
-                      {!own && (
-                        <div className="message-author">
-                          {message.sender?.name ?? active.name}
-                        </div>
-                      )}
-                      <div className="message-text">{message.text}</div>
-                      <div className="message-time">
-                        {new Date(message.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
+                  <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id} onClick={() => !own && message.sender && setManageTarget(message.sender)}>
+                    <article className={`max-w-[min(560px,78%)] rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
+                      {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{message.sender?.name ?? active.name}</div>}
+                      <div className="text-[13px] leading-[1.55]">{message.text}</div>
+                      <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                     </article>
                   </div>
                 );
@@ -668,38 +376,14 @@ export default function ChatPage() {
               <div ref={endRef} />
             </>
           ) : (
-            <div className="empty-state">
-              <strong>This is the beginning.</strong>Send the first message and
-              make it count.
-            </div>
+            <div className="m-auto text-center text-muted"><strong className="mb-[8px] block text-[18px] text-ink">This is the beginning.</strong>Send the first message and make it count.</div>
           )}
         </div>
 
-        <div className="composer-wrap">
-          <form className="composer" onSubmit={send}>
-            <textarea
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  send(event);
-                }
-              }}
-              placeholder={
-                active ? "Write a message..." : "Choose a conversation first"
-              }
-              disabled={!active || busy}
-              rows={1}
-            />
-            <button
-              className="send-button"
-              type="submit"
-              disabled={!active || !text.trim() || busy}
-              aria-label="Send message"
-            >
-              <Send size={16} />
-            </button>
+        <div className="border-t border-line p-[18px_clamp(20px,8vw,130px)_24px] max-[800px]:px-[18px]">
+          <form className="flex items-end gap-[10px] rounded-[15px] border border-line bg-white p-[8px_8px_8px_15px]" onSubmit={send}>
+            <textarea value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(event); } }} placeholder={active ? "Write a message..." : "Choose a conversation first"} disabled={!active || busy} rows={1} className="max-h-[110px] min-h-[35px] flex-1 resize-none border-0 bg-transparent text-[13px] text-ink outline-none" />
+            <button className="grid h-[38px] w-[38px] place-items-center rounded-[11px] border-0 bg-ink text-lime" type="submit" disabled={!active || !text.trim() || busy} aria-label="Send message"><Send size={16} /></button>
           </form>
         </div>
       </section>
