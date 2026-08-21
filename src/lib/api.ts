@@ -53,7 +53,12 @@ async function request<T>(
   return body as T;
 }
 
-function unwrap<T>(value: Json): T {
+/**
+ * Unwraps common API envelope keys.
+ * Tries: data, items, results, conversations, messages, users
+ * Falls back to the raw value if none match.
+ */
+function unwrap<T>(value: Json | null): T {
   if (value && !Array.isArray(value) && typeof value === "object") {
     const record = value as Record<string, unknown>;
     for (const key of [
@@ -70,33 +75,58 @@ function unwrap<T>(value: Json): T {
   return value as T;
 }
 
+/** Normalizes any user-shaped object from the API into a User. */
 export function normalizeUser(value: unknown): User {
-  const rawItem = (value ?? {}) as Record<string, unknown>;
-  const item = (rawItem.data ?? rawItem.user ?? rawItem) as Record<string, unknown>;
-  return {
-    id: String(item.id ?? item._id ?? item.userId ?? ""),
-    name: String(item.name ?? item.fullName ?? "Unknown user"),
-    phone: String(item.phone ?? item.phoneNumber ?? "") || undefined,
-    avatar: String(item.avatar ?? item.avatarUrl ?? "") || undefined,
-  };
+  if (!value || typeof value !== "object") {
+    return { id: "", name: "Unknown user" };
+  }
+  // Unwrap common envelopes: { data: {...} } or { user: {...} }
+  const raw = value as Record<string, unknown>;
+  const item = (
+    raw.data && typeof raw.data === "object"
+      ? raw.data
+      : raw.user && typeof raw.user === "object"
+        ? raw.user
+        : raw
+  ) as Record<string, unknown>;
+
+  const id = String(item.id ?? item._id ?? item.userId ?? "");
+  const name = String(item.name ?? item.fullName ?? item.username ?? "Unknown user");
+  const phone = String(item.phone ?? item.phoneNumber ?? "") || undefined;
+  const avatar = String(item.avatar ?? item.avatarUrl ?? "") || undefined;
+  return { id, name, phone, avatar };
 }
 
+/** Normalizes any message-shaped object from the API into a Message. */
 export function normalizeMessage(value: unknown): Message {
-  const item = (value ?? {}) as Record<string, unknown>;
-  const senderObj = typeof item.sender === "object" && item.sender !== null ? item.sender : undefined;
-  const senderIdStr = String(
-      item.senderId ??
+  if (!value || typeof value !== "object") {
+    return {
+      id: crypto.randomUUID(),
+      text: "",
+      senderId: "",
+      createdAt: new Date().toISOString(),
+    };
+  }
+  const item = value as Record<string, unknown>;
+
+  // Resolve sender object vs string id
+  const senderRaw = item.sender;
+  const senderObj =
+    senderRaw && typeof senderRaw === "object" ? senderRaw : undefined;
+
+  const senderId = String(
+    item.senderId ??
       item.sender_id ??
-      (typeof item.sender === "string" ? item.sender : undefined) ??
-      (senderObj as Record<string, unknown>)?.id ??
-      (senderObj as Record<string, unknown>)?._id ??
-      ""
+      (typeof senderRaw === "string" ? senderRaw : undefined) ??
+      (senderObj as Record<string, unknown> | undefined)?.id ??
+      (senderObj as Record<string, unknown> | undefined)?._id ??
+      "",
   );
 
   return {
     id: String(item.id ?? item._id ?? crypto.randomUUID()),
     text: String(item.text ?? item.content ?? item.message ?? ""),
-    senderId: senderIdStr,
+    senderId,
     createdAt: String(
       item.createdAt ??
         item.created_at ??
@@ -107,46 +137,94 @@ export function normalizeMessage(value: unknown): Message {
   };
 }
 
-export function normalizeConversation(value: unknown): Conversation {
-  const item = (value ?? {}) as Record<string, unknown>;
-  const participantValues = Array.isArray(item.participants)
+/**
+ * Normalizes a conversation object from the API.
+ * Handles both direct and group conversations.
+ * For direct conversations, derives the name from the other participant
+ * if the API does not provide a name field.
+ */
+export function normalizeConversation(value: unknown, currentUserId?: string): Conversation {
+  if (!value || typeof value !== "object") {
+    return { id: "", name: "Conversation", type: "direct", participants: [] };
+  }
+  const item = value as Record<string, unknown>;
+
+  // Participants: try participants, members, users arrays
+  const participantValues: unknown[] = Array.isArray(item.participants)
     ? item.participants
     : Array.isArray(item.members)
       ? item.members
-      : [];
-  const adminValues = Array.isArray(item.admins)
+      : Array.isArray(item.users)
+        ? item.users
+        : [];
+
+  const participants = participantValues.map(normalizeUser);
+
+  // Admins: array of user objects or plain ids
+  const adminValues: unknown[] = Array.isArray(item.admins)
     ? item.admins
     : Array.isArray(item.adminIds)
       ? item.adminIds
       : [];
+  const admins = adminValues.map((admin) => {
+    if (typeof admin === "string") return admin;
+    if (admin && typeof admin === "object") {
+      const a = admin as Record<string, unknown>;
+      return String(a.id ?? a._id ?? "");
+    }
+    return String(admin);
+  });
+
+  const isGroup = item.type === "group" || item.isGroup === true;
+  const type: "direct" | "group" = isGroup ? "group" : "direct";
+
+  // Name resolution:
+  // 1. Explicit name/title field (always used for groups)
+  // 2. otherUserName from API
+  // 3. For direct: find the other participant who isn't the current user
+  // 4. Fall back to first participant name
+  let name = String(item.name ?? item.title ?? item.otherUserName ?? "");
+  if (!name && !isGroup) {
+    const other =
+      currentUserId
+        ? participants.find((p) => p.id !== currentUserId)
+        : participants[1] ?? participants[0];
+    name = other?.name ?? "";
+  }
+  if (!name) name = participants[0]?.name ?? "Conversation";
+
   const last = item.lastMessage ?? item.last_message;
+
   return {
     id: String(item.id ?? item._id ?? ""),
-    name: String(
-      item.name ?? item.title ?? item.otherUserName ?? "Conversation",
-    ),
-    type: item.type === "group" || item.isGroup === true ? "group" : "direct",
-    participants: participantValues.map(normalizeUser),
-    admins: adminValues.map((admin) =>
-      String((admin as Record<string, unknown>)?.id ?? admin),
-    ),
+    name,
+    type,
+    participants,
+    admins,
     lastMessage: last ? normalizeMessage(last) : undefined,
     unreadCount: Number(item.unreadCount ?? item.unread_count ?? 0),
   };
 }
 
 export const api = {
+  /** POST /auth/login — Log in or register. Returns token + user. */
   login: async (payload: { phone: string; name: string }) => {
     const result = await request<Json>(
       "/auth/login",
       { method: "POST", body: JSON.stringify(payload) },
     );
-    return unwrap<{ token?: string; accessToken?: string; user?: unknown }>(result);
+    // API may return { token, user } directly or wrapped in { data: ... }
+    const unwrapped = unwrap<{ token?: string; accessToken?: string; user?: unknown }>(result);
+    return unwrapped as { token?: string; accessToken?: string; user?: unknown };
   },
+
+  /** GET /auth/me — Returns the current authenticated user. */
   me: async (token: string) => {
     const result = await request<Json>("/auth/me", {}, token);
     return unwrap<unknown>(result);
   },
+
+  /** GET /users/search?q= — Search users by name or phone. */
   searchUsers: async (query: string, token: string) => {
     const result = await request<Json>(
       `/users/search?q=${encodeURIComponent(query)}`,
@@ -156,17 +234,27 @@ export const api = {
     const values = unwrap<unknown[]>(result);
     return (Array.isArray(values) ? values : []).map(normalizeUser);
   },
-  conversations: async (token: string) => {
+
+  /** GET /conversations — List all conversations for the current user. */
+  conversations: async (token: string, currentUserId?: string) => {
     const result = await request<Json>("/conversations", {}, token);
     const values = unwrap<unknown[]>(result);
-    return (Array.isArray(values) ? values : []).map(normalizeConversation);
+    return (Array.isArray(values) ? values : []).map((c) =>
+      normalizeConversation(c, currentUserId),
+    );
   },
-  startConversation: (userId: string, token: string) =>
-    request<unknown>(
+
+  /** POST /conversations — Start a direct conversation with a user. */
+  startConversation: async (userId: string, token: string, currentUserId?: string) => {
+    const result = await request<Json>(
       "/conversations",
       { method: "POST", body: JSON.stringify({ userId }) },
       token,
-    ),
+    );
+    return normalizeConversation(unwrap<unknown>(result), currentUserId);
+  },
+
+  /** GET /conversations/:id/messages — Get message history for a conversation. */
   messages: async (conversationId: string, token: string) => {
     const result = await request<Json>(
       `/conversations/${conversationId}/messages?limit=50`,
@@ -176,41 +264,59 @@ export const api = {
     const values = unwrap<unknown[]>(result);
     return (Array.isArray(values) ? values : []).map(normalizeMessage);
   },
-  sendMessage: (conversationId: string, text: string, token: string) =>
-    request<unknown>(
+
+  /** POST /messages — Send a message. */
+  sendMessage: async (conversationId: string, text: string, token: string) => {
+    const result = await request<Json>(
       "/messages",
       { method: "POST", body: JSON.stringify({ conversationId, text }) },
       token,
-    ),
-  createGroup: (name: string, participantIds: string[], token: string) =>
-    request<unknown>(
+    );
+    return normalizeMessage(unwrap<unknown>(result));
+  },
+
+  /** POST /conversations/group — Create a group conversation. */
+  createGroup: async (name: string, participantIds: string[], token: string, currentUserId?: string) => {
+    const result = await request<Json>(
       "/conversations/group",
       { method: "POST", body: JSON.stringify({ name, participantIds }) },
       token,
-    ),
+    );
+    return normalizeConversation(unwrap<unknown>(result), currentUserId);
+  },
+
+  /** POST /conversations/:id/participants — Add members to a group (admins only). */
   addParticipants: (conversationId: string, userIds: string[], token: string) =>
     request<unknown>(
       `/conversations/${conversationId}/participants`,
       { method: "POST", body: JSON.stringify({ userIds }) },
       token,
     ),
+
+  /** DELETE /conversations/:id/participants/:userId — Remove a member / leave a group. */
   removeParticipant: (conversationId: string, userId: string, token: string) =>
     request<unknown>(
       `/conversations/${conversationId}/participants/${userId}`,
       { method: "DELETE" },
       token,
     ),
+
+  /** POST /conversations/:id/admins — Promote a member to admin (admins only). */
   promoteAdmin: (conversationId: string, userId: string, token: string) =>
     request<unknown>(
       `/conversations/${conversationId}/admins`,
       { method: "POST", body: JSON.stringify({ userId }) },
       token,
     ),
+
+  /** PATCH /conversations/:id — Rename a group (admins only). */
   renameGroup: (conversationId: string, name: string, token: string) =>
     request<unknown>(
       `/conversations/${conversationId}`,
       { method: "PATCH", body: JSON.stringify({ name }) },
       token,
     ),
+
+  /** GET /health — Health check (no auth required). */
   health: () => request<unknown>("/health"),
 };

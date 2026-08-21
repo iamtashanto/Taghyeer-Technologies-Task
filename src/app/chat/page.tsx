@@ -36,8 +36,8 @@ export default function ChatPage() {
   const activeAdminIds = useMemo(() => active?.admins ?? [], [active]);
   const isAdmin = !!session && activeAdminIds.includes(session.user.id);
 
-  async function refreshConversations(currentToken: string) {
-    const next = await api.conversations(currentToken);
+  async function refreshConversations(currentToken: string, currentUserId?: string) {
+    const next = await api.conversations(currentToken, currentUserId);
     setConversations(next);
     if (activeIdRef.current) {
       const latestActive = next.find((item) => item.id === activeIdRef.current);
@@ -65,7 +65,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!session) return;
-    refreshConversations(session.token).catch((e: Error) => setError(e.message));
+    refreshConversations(session.token, session.user.id).catch((e: Error) => setError(e.message));
   }, [session]);
 
   useEffect(() => {
@@ -107,12 +107,12 @@ export default function ChatPage() {
         if (conversationId === activeIdRef.current) {
           setMessages((current) => current.some((message) => message.id === next.id) ? current : [...current, next]);
         } else {
-          refreshConversations(session.token).catch(() => undefined);
+          refreshConversations(session.token, session.user.id).catch(() => undefined);
         }
       });
 
       socket.on("conversation:updated", () => {
-        refreshConversations(session.token).catch(() => undefined);
+        refreshConversations(session.token, session.user.id).catch(() => undefined);
       });
     });
 
@@ -148,9 +148,7 @@ export default function ChatPage() {
     setBusy(true);
     setError("");
     try {
-      const created = await api.startConversation(user.id, session.token);
-      const normalized = normalizeConversation(created);
-      const next = normalized.id ? normalized : { id: user.id, name: user.name, type: "direct" as const, participants: [user] };
+      const next = await api.startConversation(user.id, session.token, session.user.id);
       setConversations((current) => [next, ...current.filter((item) => item.id !== next.id)]);
       setActive(next);
       setQuery("");
@@ -171,8 +169,7 @@ export default function ChatPage() {
     setBusy(true);
     setError("");
     try {
-      const created = await api.createGroup(groupName.trim(), groupMembers.map((item) => item.id), session.token);
-      const next = normalizeConversation(created);
+      const next = await api.createGroup(groupName.trim(), groupMembers.map((item) => item.id), session.token, session.user.id);
       setConversations((current) => [next, ...current]);
       setActive(next);
       setGroupName("");
@@ -193,7 +190,7 @@ export default function ChatPage() {
     setError("");
     try {
       await api.renameGroup(active.id, renameValue.trim(), session.token);
-      await refreshConversations(session.token);
+      await refreshConversations(session.token, session.user.id);
       setRenameValue("");
     } catch (e) {
       setError((e as Error).message);
@@ -208,7 +205,7 @@ export default function ChatPage() {
     setError("");
     try {
       await api.addParticipants(active.id, [user.id], session.token);
-      await refreshConversations(session.token);
+      await refreshConversations(session.token, session.user.id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -222,7 +219,7 @@ export default function ChatPage() {
     setError("");
     try {
       await api.removeParticipant(active.id, user.id, session.token);
-      await refreshConversations(session.token);
+      await refreshConversations(session.token, session.user.id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -236,7 +233,7 @@ export default function ChatPage() {
     setError("");
     try {
       await api.promoteAdmin(active.id, user.id, session.token);
-      await refreshConversations(session.token);
+      await refreshConversations(session.token, session.user.id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -271,7 +268,7 @@ export default function ChatPage() {
     setMessages((current) => [...current, optimistic]);
     try {
       const sent = await api.sendMessage(active.id, value, session.token);
-      setMessages((current) => [...current.filter((item) => item.id !== optimistic.id), normalizeMessage(sent)]);
+      setMessages((current) => [...current.filter((item) => item.id !== optimistic.id), sent]);
     } catch (e) {
       setMessages((current) => current.filter((item) => item.id !== optimistic.id));
       setText(value);

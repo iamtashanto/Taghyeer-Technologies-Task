@@ -101,7 +101,10 @@ Start a direct conversation with another user.
 {
   "id": "conv_1",
   "isGroup": false,
-  "participants": [...]
+  "participants": [
+    { "id": "user_123", "name": "Ada Lovelace" },
+    { "id": "user_456", "name": "Bob Smith" }
+  ]
 }
 ```
 
@@ -170,15 +173,90 @@ Create a group conversation. The creator automatically becomes an admin.
   "isGroup": true,
   "name": "Project Team",
   "admins": ["user_123"],
-  "participants": [...]
+  "participants": [
+    { "id": "user_123", "name": "Ada Lovelace" },
+    { "id": "user_456", "name": "Bob Smith" },
+    { "id": "user_789", "name": "Charlie" }
+  ]
 }
 ```
 
-*(Additional endpoints like add/remove participants, promote admins, and rename groups are supported as per the OpenAPI spec with similar request/response structures.)*
+### POST /conversations/{id}/participants
+Add members to a group (admins only).
+
+**Request**
+```json
+{
+  "userIds": ["user_999"]
+}
+```
+
+**Response** (200 OK)
+```json
+{
+  "success": true
+}
+```
+
+### DELETE /conversations/{id}/participants/{userId}
+Remove a member from a group (admins only). Passing your own id leaves the group.
+
+**Response** (200 OK)
+```json
+{
+  "success": true
+}
+```
+
+### POST /conversations/{id}/admins
+Promote an existing group member to admin (admins only).
+
+**Request**
+```json
+{
+  "userId": "user_456"
+}
+```
+
+**Response** (200 OK)
+```json
+{
+  "success": true
+}
+```
+
+### PATCH /conversations/{id}
+Rename a group (admins only).
+
+**Request**
+```json
+{
+  "name": "Renamed Team"
+}
+```
+
+**Response** (200 OK)
+```json
+{
+  "success": true
+}
+```
+
+## System
+
+### GET /health
+Health check endpoint.
+
+**Response** (200 OK)
+```json
+{
+  "status": "ok"
+}
+```
 
 ## WebSockets
 WebSocket events are available for real-time updates via Socket.IO.
 
 **Events**
-- `message:new`: Emitted when a new message is received.
-- `conversation:updated`: Emitted when a group changes.
+- `message:new`: Emitted when a new message is received. Payload contains the message object.
+- `conversation:updated`: Emitted when a group you're in changes (created, renamed, members/admins changed).
