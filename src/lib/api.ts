@@ -71,7 +71,8 @@ function unwrap<T>(value: Json): T {
 }
 
 export function normalizeUser(value: unknown): User {
-  const item = (value ?? {}) as Record<string, unknown>;
+  const rawItem = (value ?? {}) as Record<string, unknown>;
+  const item = (rawItem.data ?? rawItem.user ?? rawItem) as Record<string, unknown>;
   return {
     id: String(item.id ?? item._id ?? item.userId ?? ""),
     name: String(item.name ?? item.fullName ?? "Unknown user"),
@@ -82,22 +83,27 @@ export function normalizeUser(value: unknown): User {
 
 export function normalizeMessage(value: unknown): Message {
   const item = (value ?? {}) as Record<string, unknown>;
+  const senderObj = typeof item.sender === "object" && item.sender !== null ? item.sender : undefined;
+  const senderIdStr = String(
+      item.senderId ??
+      item.sender_id ??
+      (typeof item.sender === "string" ? item.sender : undefined) ??
+      (senderObj as Record<string, unknown>)?.id ??
+      (senderObj as Record<string, unknown>)?._id ??
+      ""
+  );
+
   return {
     id: String(item.id ?? item._id ?? crypto.randomUUID()),
     text: String(item.text ?? item.content ?? item.message ?? ""),
-    senderId: String(
-      item.senderId ??
-        item.sender_id ??
-        (item.sender as Record<string, unknown> | undefined)?.id ??
-        "",
-    ),
+    senderId: senderIdStr,
     createdAt: String(
       item.createdAt ??
         item.created_at ??
         item.timestamp ??
         new Date().toISOString(),
     ),
-    sender: item.sender ? normalizeUser(item.sender) : undefined,
+    sender: senderObj ? normalizeUser(senderObj) : undefined,
   };
 }
 
@@ -130,12 +136,17 @@ export function normalizeConversation(value: unknown): Conversation {
 }
 
 export const api = {
-  login: (payload: { phone: string; name: string }) =>
-    request<{ token?: string; accessToken?: string; user?: unknown }>(
+  login: async (payload: { phone: string; name: string }) => {
+    const result = await request<Json>(
       "/auth/login",
       { method: "POST", body: JSON.stringify(payload) },
-    ),
-  me: (token: string) => request<unknown>("/auth/me", {}, token),
+    );
+    return unwrap<{ token?: string; accessToken?: string; user?: unknown }>(result);
+  },
+  me: async (token: string) => {
+    const result = await request<Json>("/auth/me", {}, token);
+    return unwrap<unknown>(result);
+  },
   searchUsers: async (query: string, token: string) => {
     const result = await request<Json>(
       `/users/search?q=${encodeURIComponent(query)}`,

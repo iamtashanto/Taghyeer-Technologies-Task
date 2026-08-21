@@ -9,6 +9,7 @@ type Session = { token: string; user: User };
 
 export default function ChatPage() {
   const [session, setSession] = useState<Session | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -46,9 +47,20 @@ export default function ChatPage() {
 
   useEffect(() => {
     const stored = window.localStorage.getItem("relay-session");
-    if (!stored) return;
+    if (!stored) {
+      setCheckingSession(false);
+      return;
+    }
     const parsed = JSON.parse(stored) as Session;
-    api.me(parsed.token).then((value) => setSession({ token: parsed.token, user: normalizeUser(value) })).catch(() => window.localStorage.removeItem("relay-session"));
+    setSession(parsed); // optimistically set session
+    api.me(parsed.token).then((value) => {
+      setSession({ token: parsed.token, user: normalizeUser(value) });
+    }).catch(() => {
+      window.localStorage.removeItem("relay-session");
+      setSession(null);
+    }).finally(() => {
+      setCheckingSession(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -273,6 +285,14 @@ export default function ChatPage() {
     window.localStorage.removeItem("relay-session");
     setSession(null);
     setActive(null);
+  }
+
+  if (checkingSession && !session) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-paper p-6">
+        <div className="font-dmmono text-[11px] uppercase tracking-[0.1em] text-muted">Loading workspace...</div>
+      </main>
+    );
   }
 
   if (!session) {
