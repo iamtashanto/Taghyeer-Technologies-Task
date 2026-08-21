@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [groupMembers, setGroupMembers] = useState<User[]>([]);
   const [manageTarget, setManageTarget] = useState<User | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [showParticipants, setShowParticipants] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
   const socketRef = useRef<import("socket.io-client").Socket | null>(null);
@@ -70,6 +71,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     activeIdRef.current = activeId;
+    setShowParticipants(false);
   }, [activeId]);
 
   useEffect(() => {
@@ -354,12 +356,27 @@ export default function ChatPage() {
       <section className="flex min-w-0 flex-col">
         <header className="flex min-h-[82px] items-center justify-between border-b border-line p-[16px_34px] max-[800px]:p-[15px_18px]">
           {active ? (
-            <div className="flex items-center gap-[13px]"><span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{active.type === "group" ? <Users size={15} /> : active.name.slice(0, 1).toUpperCase()}</span><div><h1 className="m-0 max-w-none text-[18px] tracking-[-0.04em]">{active.name}</h1><p className="mt-[4px] mb-0 text-[11px] text-muted">{active.type === "group" ? `${active.participants.length || "Several"} participants` : "Direct conversation"}</p></div></div>
+            <div className="flex items-center gap-[13px]"><span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{active.type === "group" ? <Users size={15} /> : active.name.slice(0, 1).toUpperCase()}</span><div><h1 className="m-0 max-w-none text-[18px] tracking-[-0.04em]">{active.name}</h1><p className="mt-[4px] mb-0 text-[11px] text-muted">{active.type === "group" ? <button onClick={() => setShowParticipants((prev) => !prev)} className="hover:text-ink underline decoration-dashed underline-offset-[3px]">{active.participants.length || "Several"} participants</button> : "Direct conversation"}</p></div></div>
           ) : (
             <div className="flex items-center gap-[13px]"><span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime"><MessageCircle size={15} /></span><div><h1 className="m-0 max-w-none text-[18px] tracking-[-0.04em]">Your workspace</h1><p className="mt-[4px] mb-0 text-[11px] text-muted">Select a conversation to begin</p></div></div>
           )}
           <div className="flex items-center gap-[7px] font-dmmono text-[10px] uppercase text-teal"><span className="h-[6px] w-[6px] rounded-full bg-[#62bc78] shadow-[0_0_0_4px_#e1f2e2]" /> live updates</div>
         </header>
+
+        {showParticipants && active && active.type === "group" && (
+          <div className="border-b border-line bg-[#f9faf7] p-[12px_34px] text-[12px] max-[800px]:p-[12px_18px]">
+            <h3 className="mb-[8px] font-dmmono text-[10px] uppercase tracking-[0.1em] text-muted">Group Members</h3>
+            <ul className="flex flex-wrap gap-[8px]">
+              {active.participants.map((p) => (
+                <li key={p.id} className="flex items-center gap-[6px] rounded-[6px] border border-[#dfe2da] bg-white p-[4px_8px] shadow-sm">
+                  <span className="grid h-[18px] w-[18px] place-items-center rounded-[4px] bg-[#31453e] text-[9px] font-extrabold text-lime">{p.name.slice(0, 1).toUpperCase()}</span>
+                  <span>{p.name} {p.id === session?.user.id && "(You)"}</span>
+                  {activeAdminIds.includes(p.id) && <Crown size={11} className="text-[#d9a05b]" aria-label="Admin" />}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {error && <div className="mt-[15px] mx-[25px] p-[12px_15px] border border-[#f3b8ad] rounded-[9px] text-[#9a392c] bg-[#fff1ee] text-[12px]">{error}</div>}
 
