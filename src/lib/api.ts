@@ -77,6 +77,9 @@ function unwrap<T>(value: Json | null): T {
 
 /** Normalizes any user-shaped object from the API into a User. */
 export function normalizeUser(value: unknown): User {
+  if (typeof value === "string") {
+    return { id: value, name: "Unknown user" };
+  }
   if (!value || typeof value !== "object") {
     return { id: "", name: "Unknown user" };
   }
@@ -149,14 +152,28 @@ export function normalizeConversation(value: unknown, currentUserId?: string): C
   }
   const item = value as Record<string, unknown>;
 
-  // Participants: try participants, members, users arrays
-  const participantValues: unknown[] = Array.isArray(item.participants)
+  const participantValues: unknown[] = Array.isArray(item.participants) && item.participants.length
     ? item.participants
-    : Array.isArray(item.members)
+    : Array.isArray(item.members) && item.members.length
       ? item.members
-      : Array.isArray(item.users)
+      : Array.isArray(item.users) && item.users.length
         ? item.users
-        : [];
+        : Array.isArray(item.participantIds) && item.participantIds.length
+          ? item.participantIds
+          : Array.isArray(item.userIds) && item.userIds.length
+            ? item.userIds
+            : [];
+
+  if (participantValues.length === 0) {
+    if (item.otherUser) participantValues.push(item.otherUser);
+    if (item.recipient) participantValues.push(item.recipient);
+    if (item.targetUser) participantValues.push(item.targetUser);
+    if (item.participant) participantValues.push(item.participant);
+    if (item.user) participantValues.push(item.user);
+    if (item.other_user) participantValues.push(item.other_user);
+    if (item.other) participantValues.push(item.other);
+    if (item.recipientId) participantValues.push({ id: item.recipientId });
+  }
 
   const participants = participantValues.map(normalizeUser);
 
@@ -183,7 +200,7 @@ export function normalizeConversation(value: unknown, currentUserId?: string): C
   // 2. otherUserName from API
   // 3. For direct: find the other participant who isn't the current user
   // 4. Fall back to first participant name
-  let name = String(item.name ?? item.title ?? item.otherUserName ?? "");
+  let name = String(item.name ?? item.title ?? item.otherUserName ?? item.conversationName ?? "");
   if (!name && !isGroup) {
     const other =
       currentUserId

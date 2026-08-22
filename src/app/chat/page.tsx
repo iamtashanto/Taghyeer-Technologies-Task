@@ -27,6 +27,7 @@ export default function ChatPage() {
   const [manageTarget, setManageTarget] = useState<User | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
   const socketRef = useRef<import("socket.io-client").Socket | null>(null);
@@ -38,11 +39,15 @@ export default function ChatPage() {
   const isAdmin = !!session && activeAdminIds.includes(session.user.id);
 
   async function refreshConversations(currentToken: string, currentUserId?: string) {
-    const next = await api.conversations(currentToken, currentUserId);
-    setConversations(next);
-    if (activeIdRef.current) {
-      const latestActive = next.find((item) => item.id === activeIdRef.current);
-      if (latestActive) setActive(latestActive);
+    try {
+      const next = await api.conversations(currentToken, currentUserId);
+      setConversations(next);
+      if (activeIdRef.current) {
+        const latestActive = next.find((item) => item.id === activeIdRef.current);
+        if (latestActive) setActive(latestActive);
+      }
+    } finally {
+      setLoadingConversations(false);
     }
   }
 
@@ -77,7 +82,13 @@ export default function ChatPage() {
   useEffect(() => {
     if (!session || !activeId) return;
     setLoading(true);
-    api.messages(activeId, session.token).then(setMessages).catch((e: Error) => setError(e.message)).finally(() => setLoading(false));
+    api.messages(activeId, session.token)
+      .then((msgs) => {
+        const sorted = [...msgs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        setMessages(sorted);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [activeId, session]);
 
   useEffect(() => {
@@ -150,7 +161,10 @@ export default function ChatPage() {
     setBusy(true);
     setError("");
     try {
-      const next = await api.startConversation(user.id, session.token, session.user.id);
+      let next = await api.startConversation(user.id, session.token, session.user.id);
+      if (next.name === "Conversation" || next.name === "Unknown user" || !next.name) {
+        next = { ...next, name: user.name, participants: next.participants.length ? next.participants : [session.user, user] };
+      }
       setConversations((current) => [next, ...current.filter((item) => item.id !== next.id)]);
       setActive(next);
       setQuery("");
@@ -190,11 +204,19 @@ export default function ChatPage() {
     if (!session || !active || !isGroup || !isAdmin || !renameValue.trim()) return;
     setBusy(true);
     setError("");
+    const newName = renameValue.trim();
+    const previousName = active.name;
+    // Optimistically update
+    setActive({ ...active, name: newName });
+    setConversations((current) => current.map((c) => c.id === active.id ? { ...c, name: newName } : c));
     try {
-      await api.renameGroup(active.id, renameValue.trim(), session.token);
+      await api.renameGroup(active.id, newName, session.token);
       await refreshConversations(session.token, session.user.id);
       setRenameValue("");
     } catch (e) {
+      // Revert on error
+      setActive({ ...active, name: previousName });
+      setConversations((current) => current.map((c) => c.id === active.id ? { ...c, name: previousName } : c));
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -270,7 +292,11 @@ export default function ChatPage() {
     setMessages((current) => [...current, optimistic]);
     try {
       const sent = await api.sendMessage(active.id, value, session.token);
-      setMessages((current) => [...current.filter((item) => item.id !== optimistic.id), sent]);
+      setMessages((current) => {
+        const filtered = current.filter((item) => item.id !== optimistic.id);
+        if (filtered.some((m) => m.id === sent.id)) return filtered; // Already added by socket
+        return [...filtered, sent];
+      });
     } catch (e) {
       setMessages((current) => current.filter((item) => item.id !== optimistic.id));
       setText(value);
@@ -288,8 +314,20 @@ export default function ChatPage() {
 
   if (checkingSession && !session) {
     return (
-      <main className="grid min-h-screen place-items-center bg-paper p-6">
-        <div className="font-dmmono text-[11px] uppercase tracking-[0.1em] text-muted">Loading workspace...</div>
+      <main className="grid min-h-screen grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1 animate-pulse">
+        <aside className="bg-ink px-[18px] pt-[25px] pb-[25px] flex flex-col gap-[20px]">
+          <div className="h-[31px] w-[100px] bg-[#293732] rounded-[4px] mx-[10px] mb-[22px]"></div>
+          <div className="h-[25px] bg-[#293732] rounded-[9px] mx-[4px]"></div>
+          <div className="h-[60px] bg-[#293732] rounded-[10px] mx-[4px]"></div>
+          <div className="h-[60px] bg-[#293732] rounded-[10px] mx-[4px]"></div>
+          <div className="h-[60px] bg-[#293732] rounded-[10px] mx-[4px]"></div>
+        </aside>
+        <section className="flex flex-col">
+          <header className="flex min-h-[82px] items-center justify-between border-b border-line p-[16px_34px]">
+            <div className="flex items-center gap-[13px]"><div className="h-[35px] w-[35px] bg-[#edf0e8] rounded-[12px_12px_12px_4px]"></div><div><div className="h-[18px] w-[120px] bg-[#edf0e8] rounded mb-[4px]"></div><div className="h-[11px] w-[80px] bg-[#edf0e8] rounded"></div></div></div>
+          </header>
+          <div className="flex-1 p-[30px_clamp(20px,8vw,130px)]"></div>
+        </section>
       </main>
     );
   }
@@ -322,7 +360,19 @@ export default function ChatPage() {
         {groupOpen && (
           <form className="mx-[4px] mb-[15px] grid gap-[8px] rounded-[10px] border border-[#3b4842] bg-[#23312c] p-[12px]" onSubmit={createGroup}>
             <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" className="w-full rounded-[6px] border border-[#506058] bg-transparent p-[8px] text-[11px] text-cream outline-none" />
-            <small className="text-[10px] text-[#9daa9f]">{groupMembers.length} selected</small>
+            
+            {groupMembers.length > 0 && (
+              <div className="flex flex-wrap gap-[5px] mt-[2px]">
+                {groupMembers.map(m => (
+                  <span key={m.id} className="flex items-center gap-[5px] bg-[#3b4842] rounded-[4px] p-[3px_6px] text-[10px] text-cream">
+                    {m.name}
+                    <button type="button" onClick={() => toggleMember(m)} className="text-[#8c9991] hover:text-[#eab0a4] font-bold">&times;</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            <small className="text-[10px] text-[#9daa9f]">{groupMembers.length ? `${groupMembers.length} selected. Search above to add.` : "Search above to select members."}</small>
             <button className="inline-flex items-center justify-center rounded-[7px] bg-lime p-[9px] text-[11px] font-extrabold text-ink" disabled={busy}>Create group</button>
           </form>
         )}
@@ -338,14 +388,28 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
-          {conversations.map((item) => (
-            <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
-              <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}</span>
-              <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{item.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{item.lastMessage?.text ?? "No messages yet"}</span></span>
-            </button>
-          ))}
-        </div>
+        {loadingConversations ? (
+          <div className="flex flex-col gap-[6px] mx-[4px] animate-pulse max-[800px]:flex-row">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex w-full gap-[11px] rounded-[10px] bg-[#293732] p-[12px_10px] max-[800px]:min-w-[155px]">
+                <div className="h-[35px] w-[35px] shrink-0 rounded-[12px_12px_12px_4px] bg-[#31453e]"></div>
+                <div className="flex-1 space-y-[6px] py-[4px]">
+                  <div className="h-[10px] w-[70%] rounded bg-[#31453e]"></div>
+                  <div className="h-[8px] w-[40%] rounded bg-[#31453e]"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
+            {conversations.map((item) => (
+              <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
+                <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}</span>
+                <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{item.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{item.lastMessage?.text ?? "No messages yet"}</span></span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mt-auto flex items-center gap-[10px] border-t border-[#35423d] p-[15px_10px_5px] max-[800px]:hidden">
           <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{session.user.name.slice(0, 1).toUpperCase()}</span>
@@ -392,7 +456,11 @@ export default function ChatPage() {
           {!active ? (
             <div className="m-auto text-center text-muted"><strong className="mb-[8px] block text-[18px] text-ink">A quiet inbox, for now.</strong>Search for someone to start a new thread.</div>
           ) : loading ? (
-            <div className="p-[40px] text-center font-dmmono text-[11px] text-muted">Loading conversation...</div>
+            <div className="p-[40px] flex flex-col gap-[25px] animate-pulse">
+              <div className="flex gap-[15px]"><div className="h-[40px] w-[40px] rounded-[12px_12px_12px_4px] bg-[#edf0e8]"></div><div className="flex-1 space-y-[8px] py-[5px]"><div className="h-[12px] w-[40%] max-w-[200px] bg-[#edf0e8] rounded"></div><div className="h-[12px] w-[60%] max-w-[300px] bg-[#edf0e8] rounded"></div></div></div>
+              <div className="flex gap-[15px] flex-row-reverse"><div className="flex-1 space-y-[8px] py-[5px] flex flex-col items-end"><div className="h-[12px] w-[30%] max-w-[150px] bg-[#edf0e8] rounded"></div><div className="h-[12px] w-[50%] max-w-[250px] bg-[#edf0e8] rounded"></div></div></div>
+              <div className="flex gap-[15px]"><div className="h-[40px] w-[40px] rounded-[12px_12px_12px_4px] bg-[#edf0e8]"></div><div className="flex-1 space-y-[8px] py-[5px]"><div className="h-[12px] w-[70%] max-w-[350px] bg-[#edf0e8] rounded"></div></div></div>
+            </div>
           ) : messages.length ? (
             <>
               {messages.map((message) => {
