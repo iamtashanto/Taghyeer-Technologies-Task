@@ -17,6 +17,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -99,10 +100,19 @@ export default function ChatPage() {
   useEffect(() => {
     if (!session || !query.trim()) {
       setResults([]);
+      setSearching(false);
       return;
     }
-    const timer = window.setTimeout(() => api.searchUsers(query.trim(), session.token).then(setResults).catch(() => setResults([])), 350);
-    return () => window.clearTimeout(timer);
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      api.searchUsers(query.trim(), session.token)
+        .then(setResults)
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [query, session]);
 
   useEffect(() => {
@@ -379,7 +389,19 @@ export default function ChatPage() {
 
         {query && (
           <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
-            {results.length ? results.map((user) => (
+            {searching ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] animate-pulse max-[800px]:min-w-[155px]">
+                    <div className="h-[35px] w-[35px] shrink-0 rounded-[12px_12px_12px_4px] bg-[#31453e]"></div>
+                    <div className="flex-1 space-y-[6px] py-[4px]">
+                      <div className="h-[12px] w-[60%] rounded bg-[#31453e]"></div>
+                      <div className="h-[10px] w-[40%] rounded bg-[#31453e]"></div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : results.length ? results.map((user) => (
               <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${groupMembers.some((member) => member.id === user.id) ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={user.id} onClick={() => groupOpen ? toggleMember(user) : openDirect(user)}>
                 <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{user.name.slice(0, 1).toUpperCase()}</span>
                 <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{user.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{groupOpen && groupMembers.some((member) => member.id === user.id) ? "Added to group" : (user.phone ?? "Start a conversation")}</span></span>
