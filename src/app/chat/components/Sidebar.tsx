@@ -144,7 +144,13 @@ export function Sidebar({
         </div>
       ) : (
         <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
-          {conversations.map((item) => {
+          {[...conversations]
+            .sort((a, b) => {
+              const aTime = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+              const bTime = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+              return bTime - aTime;
+            })
+            .map((item) => {
             const isUnread = item.lastMessage && 
               item.lastMessage.senderId !== session.user.id && 
               new Date(item.lastMessage.createdAt).getTime() > (readTimestamps[item.id] || 0);
