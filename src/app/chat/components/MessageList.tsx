@@ -58,7 +58,18 @@ export function MessageList({
                     <article className={`rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] w-full ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
                       {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{senderName ?? active?.name}</div>}
                       <div className="text-[13px] leading-[1.55]">{message.text}</div>
-                      <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>
+                        {(() => {
+                          const date = new Date(message.createdAt);
+                          const now = new Date();
+                          const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                          const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+                          if (isToday) return time;
+                          const isThisYear = date.getFullYear() === now.getFullYear();
+                          if (isThisYear) return `${date.toLocaleDateString([], { month: "short", day: "numeric" })}, ${time}`;
+                          return `${date.toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" })}, ${time}`;
+                        })()}
+                      </div>
                     </article>
                   </div>
                 </div>
