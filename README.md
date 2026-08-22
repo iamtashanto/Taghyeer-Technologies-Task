@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000) for the landing page or [htt
 - React 19
 - Socket.IO client for incoming message events
 - Lucide for interface icons
-- Custom CSS for the visual system and responsive layout
+- TailwindCss and Custom CSS for the visual system and responsive layout
 
 ## Key Features Implemented
 
