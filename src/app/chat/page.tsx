@@ -364,36 +364,61 @@ export default function ChatPage() {
       <aside className="flex flex-col bg-ink px-[18px] pt-[25px] pb-[25px] text-cream max-[800px]:min-h-0 max-[800px]:p-[17px]">
         <Link className="mx-[10px] mb-[42px] flex items-center gap-[10px] text-[18px] font-extrabold tracking-[-0.04em] max-[800px]:mb-[20px]" href="/"><span className="grid h-[31px] w-[31px] place-items-center rounded-[10px_10px_10px_3px] bg-lime font-dmmono text-[13px] text-ink">r/</span> relay</Link>
 
-        <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d] max-[800px]:hidden">Conversations<button className="grid h-[25px] w-[25px] place-items-center rounded-[7px] border border-[#405049] bg-transparent text-lime" onClick={() => setGroupOpen((open) => !open)} aria-label="Create group"><Plus size={14} /></button></div>
+        <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d] max-[800px]:hidden">Conversations<button className="grid h-[25px] w-[25px] place-items-center rounded-[7px] border border-[#405049] bg-transparent text-lime" onClick={() => { setGroupOpen((open) => !open); setQuery(""); }} aria-label="Create group"><Plus size={14} /></button></div>
 
-        <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a] max-[800px]:hidden"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={groupOpen ? "Search to add members..." : "Find someone..."} className="w-full border-0 bg-transparent text-[12px] text-cream outline-none" /></div>
+        {!groupOpen && (
+          <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a] max-[800px]:hidden"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find someone..." className="w-full border-0 bg-transparent text-[12px] text-cream outline-none" /></div>
+        )}
 
         {groupOpen && (
-          <form className="mx-[4px] mb-[15px] grid gap-[8px] rounded-[10px] border border-[#3b4842] bg-[#23312c] p-[12px]" onSubmit={createGroup}>
-            <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" className="w-full rounded-[6px] border border-[#506058] bg-transparent p-[8px] text-[11px] text-cream outline-none" />
+          <form className="mx-[4px] mb-[20px] flex flex-col gap-[10px] rounded-[12px] border border-[#405049] bg-[#23312c] p-[14px] shadow-[0_8px_20px_rgba(0,0,0,0.2)]" onSubmit={createGroup}>
+            <div className="flex items-center justify-between mb-[2px]">
+              <span className="text-[12px] font-extrabold text-lime">Create a New Group</span>
+              <button type="button" onClick={() => { setGroupOpen(false); setQuery(""); setGroupMembers([]); setGroupName(""); }} className="text-[#8c9991] hover:text-cream" aria-label="Close">&times;</button>
+            </div>
 
-            {groupMembers.length > 0 ? (
-              <div className="flex flex-wrap gap-[5px] mt-[2px]">
-                {groupMembers.map(m => (
-                  <span key={m.id} className="flex items-center gap-[5px] bg-[#3b4842] rounded-[4px] p-[3px_6px] text-[10px] text-cream">
-                    {m.name}
-                    <button type="button" onClick={() => toggleMember(m)} className="text-[#8c9991] hover:text-[#eab0a4] font-bold">&times;</button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-[#31453e] rounded-[6px] p-[10px] mt-[4px] text-center">
-                <p className="text-lime text-[11px] font-extrabold mb-[4px]">Step 1: Search above ⬆️</p>
-                <p className="text-[#9daa9f] text-[10px]">Use the search bar to find and select members.</p>
+            <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group Name" className="w-full rounded-[8px] border border-[#405049] bg-[#1a2521] p-[10px_12px] text-[12px] text-cream outline-none focus:border-[#62bc78] transition-colors" />
+
+            <div className="flex items-center gap-[8px] bg-[#1a2521] rounded-[8px] border border-[#405049] px-[12px] py-[10px] focus-within:border-[#62bc78] transition-colors">
+              <Search size={14} className="text-[#87928a]" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people to add..." className="w-full bg-transparent text-[12px] outline-none text-cream" />
+            </div>
+
+            {query && (
+              <div className="flex flex-col gap-[2px] max-h-[140px] overflow-auto rounded-[6px]">
+                {searching ? (
+                  <div className="p-[10px] text-center text-[10px] text-muted animate-pulse">Searching...</div>
+                ) : results.length ? results.map((user) => {
+                  const isAdded = groupMembers.some((m) => m.id === user.id);
+                  return (
+                    <button type="button" key={user.id} onClick={() => toggleMember(user)} className={`flex items-center justify-between p-[8px_10px] rounded-[6px] text-left text-[11px] ${isAdded ? "bg-[#31453e] text-lime" : "hover:bg-[#31453e] text-cream"}`}>
+                      <span>{user.name}</span>
+                      {isAdded ? <span className="text-[10px] font-bold">&times; Remove</span> : <span className="text-[10px] text-[#8c9991]">+ Add</span>}
+                    </button>
+                  );
+                }) : <div className="p-[10px] text-center text-[10px] text-muted">No people found</div>}
               </div>
             )}
 
-            <small className="text-[10px] text-[#9daa9f]">{groupMembers.length ? `${groupMembers.length} selected. Search above to add more.` : ""}</small>
-            <button className="inline-flex items-center justify-center rounded-[7px] bg-lime p-[9px] text-[11px] font-extrabold text-ink" disabled={busy}>Create group</button>
+            {groupMembers.length > 0 && (
+              <div className="mt-[4px]">
+                <div className="text-[10px] uppercase tracking-[0.05em] text-[#8c9991] mb-[6px] font-bold">Selected Members ({groupMembers.length})</div>
+                <div className="flex flex-wrap gap-[6px]">
+                  {groupMembers.map(m => (
+                    <span key={m.id} className="flex items-center gap-[4px] bg-[#31453e] rounded-full p-[4px_8px] text-[10px] text-cream shadow-sm">
+                      {m.name}
+                      <button type="button" onClick={() => toggleMember(m)} className="text-[#a4b5aa] hover:text-[#f3b8ad] font-bold ml-[2px]">&times;</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button className="mt-[6px] w-full items-center justify-center rounded-[8px] bg-lime p-[10px] text-[12px] font-extrabold text-ink transition-opacity hover:opacity-90 disabled:opacity-50" disabled={busy || !groupName.trim() || groupMembers.length === 0}>{busy ? "Creating..." : "Create group"}</button>
           </form>
         )}
 
-        {query && (
+        {!groupOpen && query && (
           <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
             {searching ? (
               <>
