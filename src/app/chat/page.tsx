@@ -30,6 +30,12 @@ export default function ChatPage() {
   const [renameValue, setRenameValue] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
+  
+  // Add Member State
+  const [addMemberQuery, setAddMemberQuery] = useState("");
+  const [addMemberResults, setAddMemberResults] = useState<User[]>([]);
+  const [addingMember, setAddingMember] = useState(false);
+
   const endRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
   const socketRef = useRef<import("socket.io-client").Socket | null>(null);
@@ -146,6 +152,22 @@ export default function ChatPage() {
       socketRef.current = null;
     };
   }, [session]);
+
+  useEffect(() => {
+    if (!session || !addMemberQuery.trim()) {
+      setAddMemberResults([]);
+      setAddingMember(false);
+      return;
+    }
+    setAddingMember(true);
+    const timer = window.setTimeout(() => {
+      api.searchUsers(addMemberQuery.trim(), session.token)
+        .then(setAddMemberResults)
+        .catch(() => setAddMemberResults([]))
+        .finally(() => setAddingMember(false));
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [addMemberQuery, session]);
 
   async function login(event: FormEvent) {
     event.preventDefault();
@@ -482,16 +504,45 @@ export default function ChatPage() {
 
         {showParticipants && active && active.type === "group" && (
           <div className="border-b border-line bg-[#f9faf7] p-[12px_34px] text-[12px] max-[800px]:p-[12px_18px]">
-            <h3 className="mb-[8px] font-dmmono text-[10px] uppercase tracking-[0.1em] text-muted">Group Members</h3>
+            <h3 className="mb-[8px] font-dmmono text-[10px] uppercase tracking-[0.1em] text-muted">Group Members ({active.participants.length})</h3>
             <ul className="flex flex-wrap gap-[8px]">
               {active.participants.map((p) => (
                 <li key={p.id} className="flex items-center gap-[6px] rounded-[6px] border border-[#dfe2da] bg-white p-[4px_8px] shadow-sm">
                   <span className="grid h-[18px] w-[18px] place-items-center rounded-[4px] bg-[#31453e] text-[9px] font-extrabold text-lime">{p.name.slice(0, 1).toUpperCase()}</span>
                   <span>{p.name} {p.id === session?.user.id && "(You)"}</span>
                   {activeAdminIds.includes(p.id) && <Crown size={11} className="text-[#d9a05b]" aria-label="Admin" />}
+                  {isAdmin && p.id !== session?.user.id && (
+                    <div className="flex items-center ml-[4px] border-l border-[#dfe2da] pl-[8px] gap-[6px]">
+                      {!activeAdminIds.includes(p.id) && (
+                        <button onClick={() => promoteToAdmin(p)} disabled={busy} className="text-[#8c9891] hover:text-ink text-[10px] font-bold" title="Promote to Admin">Promote</button>
+                      )}
+                      <button onClick={() => removeFromGroup(p)} disabled={busy} className="text-[#eab0a4] hover:text-[#9f3f31] text-[12px] font-bold" title="Remove from Group">&times;</button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
+            
+            {isAdmin && (
+              <div className="mt-[15px] pt-[15px] border-t border-[#dfe2da]">
+                <h3 className="mb-[8px] font-dmmono text-[10px] uppercase tracking-[0.1em] text-muted">Add New Member</h3>
+                <div className="relative max-w-[300px]">
+                  <input value={addMemberQuery} onChange={e => setAddMemberQuery(e.target.value)} placeholder="Search by name or phone..." className="w-full rounded-[6px] border border-[#dfe2da] bg-white px-[10px] py-[6px] text-[12px] outline-none focus:border-lime" />
+                  {addMemberQuery && (
+                    <div className="absolute top-full left-0 right-0 mt-[4px] max-h-[150px] overflow-auto bg-white border border-[#dfe2da] rounded-[6px] shadow-lg z-10">
+                      {addingMember ? <div className="p-[8px] text-center text-[10px] text-muted animate-pulse">Searching...</div> : 
+                        addMemberResults.length ? addMemberResults.map(u => (
+                          <button type="button" key={u.id} onClick={() => { addToGroup(u); setAddMemberQuery(""); }} disabled={busy || active.participants.some(p => p.id === u.id)} className="w-full text-left p-[8px_10px] hover:bg-[#f9faf7] text-[11px] border-b border-[#dfe2da] last:border-0 flex justify-between items-center disabled:opacity-50">
+                            <span>{u.name} {active.participants.some(p => p.id === u.id) && "(Already in group)"}</span>
+                            {!active.participants.some(p => p.id === u.id) && <span className="text-[#62bc78] font-bold">+ Add</span>}
+                          </button>
+                        )) : <div className="p-[8px] text-center text-[10px] text-muted">No users found</div>
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -500,7 +551,6 @@ export default function ChatPage() {
         {active && isGroup && (
           <div className="flex flex-wrap gap-[10px] border-b border-line bg-[#f2f3ee] p-[12px_20px]">
             <form onSubmit={renameGroup} className="flex items-center gap-[8px]"><input placeholder="Rename group" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} disabled={!isAdmin || busy} className="h-[32px] rounded-[8px] border border-[#c8cec2] bg-white px-[10px] text-[12px]" /><button type="submit" className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" disabled={!isAdmin || !renameValue.trim() || busy}>Rename</button></form>
-            {isAdmin && manageTarget && (<div className="flex gap-[8px]"><button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" onClick={() => addToGroup(manageTarget)} disabled={busy}><UserPlus size={12} /> Add</button><button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" onClick={() => removeFromGroup(manageTarget)} disabled={busy}><UserMinus size={12} /> Remove</button><button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" onClick={() => promoteToAdmin(manageTarget)} disabled={busy}><Crown size={12} /> Promote</button></div>)}
             <button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#eab0a4] bg-[#fff4f1] px-[10px] text-[11px] font-bold text-[#9f3f31]" onClick={leaveGroup} disabled={busy}>Leave group</button>
           </div>
         )}
@@ -519,7 +569,7 @@ export default function ChatPage() {
               {messages.map((message) => {
                 const own = message.senderId === session.user.id || message.senderId === "me";
                 return (
-                  <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id} onClick={() => !own && message.sender && setManageTarget(message.sender)}>
+                  <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id}>
                     <article className={`max-w-[min(560px,78%)] rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
                       {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{message.sender?.name ?? active.name}</div>}
                       <div className="text-[13px] leading-[1.55]">{message.text}</div>
