@@ -54,6 +54,7 @@ export default function ChatPage() {
   function handleSetActive(item: Conversation | null) {
     setActive(item);
     if (item) {
+      setLoading(true);
       window.history.replaceState(null, '', `?chat=${item.id}`);
     } else {
       window.history.replaceState(null, '', window.location.pathname);
@@ -73,7 +74,10 @@ export default function ChatPage() {
 
       if (targetId) {
         const latestActive = next.find((item) => item.id === targetId);
-        if (latestActive) setActive(latestActive);
+        if (latestActive) {
+          setActive(latestActive);
+          setLoading(true);
+        }
       }
     } finally {
       setLoadingConversations(false);
@@ -470,6 +474,7 @@ export default function ChatPage() {
           setAddMemberQuery={setAddMemberQuery}
           addMemberResults={addMemberResults}
           addingMember={addingMember}
+          loadingConversations={loadingConversations}
         />
 
         <MessageList
@@ -482,6 +487,7 @@ export default function ChatPage() {
           showScrollButton={showScrollButton}
           setShowScrollButton={setShowScrollButton}
           endRef={endRef}
+          loadingConversations={loadingConversations}
           scrollToBottom={() => {
             shouldStickToBottom.current = true;
             setShowScrollButton(false);

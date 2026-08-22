@@ -23,12 +23,13 @@ interface ChatHeaderProps {
   setAddMemberQuery: React.Dispatch<React.SetStateAction<string>>;
   addMemberResults: User[];
   addingMember: boolean;
+  loadingConversations: boolean;
 }
 
 export function ChatHeader({
   session, active, busy, isAdmin, activeAdminIds, showParticipants, setShowParticipants,
   renameValue, setRenameValue, renameGroup, leaveGroup, addToGroup, removeFromGroup, promoteToAdmin,
-  addMemberQuery, setAddMemberQuery, addMemberResults, addingMember
+  addMemberQuery, setAddMemberQuery, addMemberResults, addingMember, loadingConversations
 }: ChatHeaderProps) {
   const isGroup = active?.type === "group";
 
@@ -49,6 +50,14 @@ export function ChatHeader({
                   </button>
                 ) : "Direct conversation"}
               </p>
+            </div>
+          </div>
+        ) : loadingConversations ? (
+          <div className="flex items-center gap-[13px] animate-pulse">
+            <div className="h-[35px] w-[35px] bg-[#edf0e8] rounded-[12px_12px_12px_4px]"></div>
+            <div>
+              <div className="h-[18px] w-[120px] bg-[#edf0e8] rounded mb-[4px]"></div>
+              <div className="h-[11px] w-[80px] bg-[#edf0e8] rounded"></div>
             </div>
           </div>
         ) : (
