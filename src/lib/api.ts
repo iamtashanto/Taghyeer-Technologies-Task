@@ -93,7 +93,7 @@ export function normalizeUser(value: unknown): User {
         : raw
   ) as Record<string, unknown>;
 
-  const id = String(item.id ?? item._id ?? item.userId ?? "");
+  const id = String(item.id ?? item._id ?? item.userId ?? item.user_id ?? item.uuid ?? "");
   const name = String(item.name ?? item.fullName ?? item.username ?? "Unknown user");
   const phone = String(item.phone ?? item.phoneNumber ?? "") || undefined;
   const avatar = String(item.avatar ?? item.avatarUrl ?? "") || undefined;
@@ -120,6 +120,9 @@ export function normalizeMessage(value: unknown): Message {
   const senderId = String(
     item.senderId ??
       item.sender_id ??
+      item.userId ??
+      item.user_id ??
+      item.sender ??
       (typeof senderRaw === "string" ? senderRaw : undefined) ??
       (senderObj as Record<string, unknown> | undefined)?.id ??
       (senderObj as Record<string, unknown> | undefined)?._id ??
@@ -127,8 +130,9 @@ export function normalizeMessage(value: unknown): Message {
   );
 
   return {
-    id: String(item.id ?? item._id ?? crypto.randomUUID()),
-    text: String(item.text ?? item.content ?? item.message ?? ""),
+    id: String(item.id ?? item._id ?? item.messageId ?? item.message_id ?? crypto.randomUUID()),
+    text: String(item.text ?? item.body ?? item.content ?? item.message ?? ""),
+    conversationId: String(item.conversationId ?? item.conversation_id ?? item.conversation ?? ""),
     senderId,
     createdAt: String(
       item.createdAt ??

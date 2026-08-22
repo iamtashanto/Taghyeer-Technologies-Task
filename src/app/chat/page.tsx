@@ -30,7 +30,7 @@ export default function ChatPage() {
   const [renameValue, setRenameValue] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
-  
+
   // Add Member State
   const [addMemberQuery, setAddMemberQuery] = useState("");
   const [addMemberResults, setAddMemberResults] = useState<User[]>([]);
@@ -131,13 +131,14 @@ export default function ChatPage() {
       socketRef.current = socket;
 
       socket.on("message:new", (payload: unknown) => {
-        const item = payload as Record<string, unknown>;
-        const conversationId = String(item.conversationId ?? item.conversation_id ?? "");
-        const next = normalizeMessage(payload);
-        if (conversationId === activeIdRef.current) {
-          setMessages((current) => current.some((message) => message.id === next.id) ? current : [...current, next]);
-        } else {
-          refreshConversations(session.token, session.user.id).catch(() => undefined);
+        refreshConversations(session.token, session.user.id).catch(() => undefined);
+        if (activeIdRef.current) {
+          api.messages(activeIdRef.current, session.token)
+            .then((msgs) => {
+              const sorted = [...msgs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+              setMessages(sorted);
+            })
+            .catch(() => undefined);
         }
       });
 
@@ -522,7 +523,7 @@ export default function ChatPage() {
                 </li>
               ))}
             </ul>
-            
+
             {isAdmin && (
               <div className="mt-[15px] pt-[15px] border-t border-[#dfe2da]">
                 <h3 className="mb-[8px] font-dmmono text-[10px] uppercase tracking-[0.1em] text-muted">Add New Member</h3>
@@ -530,7 +531,7 @@ export default function ChatPage() {
                   <input value={addMemberQuery} onChange={e => setAddMemberQuery(e.target.value)} placeholder="Search by name or phone..." className="w-full rounded-[6px] border border-[#dfe2da] bg-white px-[10px] py-[6px] text-[12px] outline-none focus:border-lime" />
                   {addMemberQuery && (
                     <div className="absolute top-full left-0 right-0 mt-[4px] max-h-[150px] overflow-auto bg-white border border-[#dfe2da] rounded-[6px] shadow-lg z-10">
-                      {addingMember ? <div className="p-[8px] text-center text-[10px] text-muted animate-pulse">Searching...</div> : 
+                      {addingMember ? <div className="p-[8px] text-center text-[10px] text-muted animate-pulse">Searching...</div> :
                         addMemberResults.length ? addMemberResults.map(u => (
                           <button type="button" key={u.id} onClick={() => { addToGroup(u); setAddMemberQuery(""); }} disabled={busy || active.participants.some(p => p.id === u.id)} className="w-full text-left p-[8px_10px] hover:bg-[#f9faf7] text-[11px] border-b border-[#dfe2da] last:border-0 flex justify-between items-center disabled:opacity-50">
                             <span>{u.name} {active.participants.some(p => p.id === u.id) && "(Already in group)"}</span>
