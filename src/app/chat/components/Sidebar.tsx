@@ -151,24 +151,24 @@ export function Sidebar({
               return bTime - aTime;
             })
             .map((item) => {
-            const isUnread = item.lastMessage && 
-              item.lastMessage.senderId !== session.user.id && 
-              new Date(item.lastMessage.createdAt).getTime() > (readTimestamps[item.id] || 0);
-              
-            return (
-              <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setShowScrollButton(false); handleSetActive(item); }}>
-                <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
-                  {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1"><span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] ${isUnread ? "font-extrabold text-lime" : "font-bold"}`}>{item.name}</span><span className={`mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] ${isUnread ? "text-cream font-bold" : "text-[#8c9991]"}`}>{item.lastMessage?.text ?? "No messages yet"}</span></span>
-                {item.unreadCount ? (
-                  <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-lime px-[5px] text-[10px] font-bold text-ink shrink-0 shadow-[0_0_0_3px_var(--tw-colors-ink)]">{item.unreadCount}</span>
-                ) : isUnread ? (
-                  <span className="h-[8px] w-[8px] rounded-full bg-lime shadow-[0_0_0_3px_var(--tw-colors-ink)] shrink-0"></span>
-                ) : null}
-              </button>
-            );
-          })}
+              const isUnread = item.lastMessage &&
+                item.lastMessage.senderId !== session.user.id &&
+                new Date(item.lastMessage.createdAt).getTime() > (readTimestamps[item.id] || 0);
+
+              return (
+                <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setShowScrollButton(false); handleSetActive(item); }}>
+                  <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
+                    {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1"><span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] ${isUnread ? "font-extrabold text-lime" : "font-bold"}`}>{item.name}</span><span className={`mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] ${isUnread ? "text-cream font-bold" : "text-[#8c9991]"}`}>{item.lastMessage?.text ?? "No messages yet"}</span></span>
+                  {item.unreadCount ? (
+                    <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-lime px-[5px] text-[10px] font-bold text-ink shrink-0 shadow-[0_0_0_3px_var(--tw-colors-ink)]">{item.unreadCount}</span>
+                  ) : isUnread ? (
+                    <span className="h-[8px] w-[8px] rounded-full bg-lime shadow-[0_0_0_3px_var(--tw-colors-ink)] shrink-0"></span>
+                  ) : null}
+                </button>
+              );
+            })}
         </div>
       )}
 

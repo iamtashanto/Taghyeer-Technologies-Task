@@ -29,8 +29,8 @@ export function ProfileModal({ session, onClose }: ProfileModalProps) {
           <div className="mb-[4px] uppercase tracking-[0.1em] text-[9px]">User ID</div>
           <div className="break-all">{session.user.id}</div>
         </div>
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="mt-[20px] w-full rounded-[8px] bg-lime py-[12px] text-[13px] font-extrabold text-ink hover:opacity-90"
         >
           Close

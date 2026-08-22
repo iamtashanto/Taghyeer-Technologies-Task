@@ -34,14 +34,14 @@ export function ChatInput({ active, busy, text, setText, onSend }: ChatInputProp
       )}
       <form className="flex items-end gap-[10px] rounded-[15px] border border-line bg-white p-[8px_8px_8px_15px]" onSubmit={onSend}>
         <button type="button" className="mb-[8px] text-[#8c9991] hover:text-lime transition-colors shrink-0" onClick={() => setShowEmojiPicker(prev => !prev)} aria-label="Choose emoji"><Smile size={20} /></button>
-        <textarea 
-          value={text} 
-          onChange={(event) => setText(event.target.value)} 
-          onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); onSend(event); } }} 
-          placeholder={active ? "Write a message..." : "Choose a conversation first"} 
-          disabled={!active || busy} 
-          rows={1} 
-          className="max-h-[110px] min-h-[35px] flex-1 resize-none border-0 bg-transparent text-[13px] text-ink outline-none py-[8px]" 
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); onSend(event); } }}
+          placeholder={active ? "Write a message..." : "Choose a conversation first"}
+          disabled={!active || busy}
+          rows={1}
+          className="max-h-[110px] min-h-[35px] flex-1 resize-none border-0 bg-transparent text-[13px] text-ink outline-none py-[8px]"
         />
         <button className="grid h-[38px] w-[38px] place-items-center rounded-[11px] border-0 bg-ink text-lime shrink-0" type="submit" disabled={!active || !text.trim() || busy} aria-label="Send message"><Send size={16} /></button>
       </form>

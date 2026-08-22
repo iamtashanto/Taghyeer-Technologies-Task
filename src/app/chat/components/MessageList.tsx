@@ -51,7 +51,7 @@ export function MessageList({
                 const participant = active?.participants?.find(p => p.id === message.senderId);
                 if (participant) senderName = participant.name;
               }
-              
+
               return (
                 <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id}>
                   <div className="relative group flex items-center max-w-[min(560px,78%)]">
@@ -61,7 +61,7 @@ export function MessageList({
                         <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="React" title="React"><SmilePlus size={14} /></button>
                       </div>
                     )}
-                    
+
                     <article className={`rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] w-full ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
                       {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{senderName ?? active?.name}</div>}
                       <div className="text-[13px] leading-[1.55]">{message.text}</div>
