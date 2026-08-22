@@ -2,8 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Crown, MessageCircle, Plus, Search, Send, UserMinus, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Crown, MessageCircle, Plus, Search, Send, UserMinus, UserPlus, Users, Smile, Reply, SmilePlus } from "lucide-react";
 import { api, Conversation, Message, normalizeConversation, normalizeMessage, normalizeUser, SOCKET_URL, User } from "@/lib/api";
+import EmojiPicker from 'emoji-picker-react';
 
 type Session = { token: string; user: User };
 
@@ -35,11 +36,23 @@ export default function ChatPage() {
   const [addMemberQuery, setAddMemberQuery] = useState("");
   const [addMemberResults, setAddMemberResults] = useState<User[]>([]);
   const [addingMember, setAddingMember] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
   const socketRef = useRef<import("socket.io-client").Socket | null>(null);
   const activeIdRef = useRef<string | undefined>(active?.id);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const activeId = active?.id;
   const isGroup = active?.type === "group";
@@ -348,7 +361,7 @@ export default function ChatPage() {
 
   if (checkingSession && !session) {
     return (
-      <main className="grid min-h-screen grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1 animate-pulse">
+      <main className="grid h-screen overflow-hidden grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1 animate-pulse">
         <aside className="bg-ink px-[18px] pt-[25px] pb-[25px] flex flex-col gap-[20px]">
           <div className="h-[31px] w-[100px] bg-[#293732] rounded-[4px] mx-[10px] mb-[22px]"></div>
           <div className="h-[25px] bg-[#293732] rounded-[9px] mx-[4px]"></div>
@@ -383,7 +396,7 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1">
+    <main className="grid h-[100dvh] overflow-hidden grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1">
       <aside className="flex flex-col bg-ink px-[18px] pt-[25px] pb-[25px] text-cream max-[800px]:min-h-0 max-[800px]:p-[17px]">
         <Link className="mx-[10px] mb-[42px] flex items-center gap-[10px] text-[18px] font-extrabold tracking-[-0.04em] max-[800px]:mb-[20px]" href="/"><span className="grid h-[31px] w-[31px] place-items-center rounded-[10px_10px_10px_3px] bg-lime font-dmmono text-[13px] text-ink">r/</span> relay</Link>
 
@@ -493,7 +506,7 @@ export default function ChatPage() {
         </div>
       </aside>
 
-      <section className="flex min-w-0 flex-col">
+      <section className="flex min-w-0 flex-col h-full overflow-hidden">
         <header className="flex min-h-[82px] items-center justify-between border-b border-line p-[16px_34px] max-[800px]:p-[15px_18px]">
           {active ? (
             <div className="flex items-center gap-[13px]"><span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{active.type === "group" ? <Users size={15} /> : active.name.slice(0, 1).toUpperCase()}</span><div><h1 className="m-0 max-w-none text-[18px] tracking-[-0.04em]">{active.name}</h1><p className="mt-[4px] mb-0 text-[11px] text-muted">{active.type === "group" ? <button onClick={() => setShowParticipants((prev) => !prev)} className="hover:text-ink underline decoration-dashed underline-offset-[3px]">{active.participants.length || "Several"} participants</button> : "Direct conversation"}</p></div></div>
@@ -577,11 +590,27 @@ export default function ChatPage() {
                 
                 return (
                   <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id}>
-                    <article className={`max-w-[min(560px,78%)] rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
-                      {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{senderName ?? active.name}</div>}
-                      <div className="text-[13px] leading-[1.55]">{message.text}</div>
-                      <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    </article>
+                    <div className="relative group flex items-center max-w-[min(560px,78%)]">
+                      {own && (
+                        <div className="absolute right-[100%] mr-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.08)] rounded-lg p-1 border border-line whitespace-nowrap">
+                          <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="Reply" title="Reply"><Reply size={14} /></button>
+                          <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="React" title="React"><SmilePlus size={14} /></button>
+                        </div>
+                      )}
+                      
+                      <article className={`rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] w-full ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
+                        {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{senderName ?? active.name}</div>}
+                        <div className="text-[13px] leading-[1.55]">{message.text}</div>
+                        <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      </article>
+
+                      {!own && (
+                        <div className="absolute left-[100%] ml-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.08)] rounded-lg p-1 border border-line whitespace-nowrap z-10">
+                          <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="Reply" title="Reply"><Reply size={14} /></button>
+                          <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="React" title="React"><SmilePlus size={14} /></button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -592,10 +621,16 @@ export default function ChatPage() {
           )}
         </div>
 
-        <div className="border-t border-line p-[18px_clamp(20px,8vw,130px)_24px] max-[800px]:px-[18px]">
+        <div className="border-t border-line p-[18px_clamp(20px,8vw,130px)_24px] max-[800px]:px-[18px] relative bg-cream" ref={emojiPickerRef}>
+          {showEmojiPicker && (
+            <div className="absolute bottom-[calc(100%-10px)] right-[clamp(20px,8vw,130px)] z-50 max-[800px]:right-[18px] shadow-2xl rounded-lg">
+              <EmojiPicker onEmojiClick={(emojiData) => { setText((prev) => prev + emojiData.emoji); setShowEmojiPicker(false); }} />
+            </div>
+          )}
           <form className="flex items-end gap-[10px] rounded-[15px] border border-line bg-white p-[8px_8px_8px_15px]" onSubmit={send}>
-            <textarea value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(event); } }} placeholder={active ? "Write a message..." : "Choose a conversation first"} disabled={!active || busy} rows={1} className="max-h-[110px] min-h-[35px] flex-1 resize-none border-0 bg-transparent text-[13px] text-ink outline-none" />
-            <button className="grid h-[38px] w-[38px] place-items-center rounded-[11px] border-0 bg-ink text-lime" type="submit" disabled={!active || !text.trim() || busy} aria-label="Send message"><Send size={16} /></button>
+            <button type="button" className="mb-[8px] text-[#8c9991] hover:text-lime transition-colors shrink-0" onClick={() => setShowEmojiPicker(prev => !prev)} aria-label="Choose emoji"><Smile size={20} /></button>
+            <textarea value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(event); } }} placeholder={active ? "Write a message..." : "Choose a conversation first"} disabled={!active || busy} rows={1} className="max-h-[110px] min-h-[35px] flex-1 resize-none border-0 bg-transparent text-[13px] text-ink outline-none py-[8px]" />
+            <button className="grid h-[38px] w-[38px] place-items-center rounded-[11px] border-0 bg-ink text-lime shrink-0" type="submit" disabled={!active || !text.trim() || busy} aria-label="Send message"><Send size={16} /></button>
           </form>
         </div>
       </section>
