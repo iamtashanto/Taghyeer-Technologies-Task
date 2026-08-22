@@ -1,5 +1,5 @@
 import React from "react";
-import { Reply, SmilePlus, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Conversation, Message, User } from "@/lib/api";
 
 type Session = { token: string; user: User };
@@ -55,25 +55,11 @@ export function MessageList({
               return (
                 <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id}>
                   <div className="relative group flex items-center max-w-[min(560px,78%)]">
-                    {own && (
-                      <div className="absolute right-[100%] mr-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.08)] rounded-lg p-1 border border-line whitespace-nowrap">
-                        <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="Reply" title="Reply"><Reply size={14} /></button>
-                        <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="React" title="React"><SmilePlus size={14} /></button>
-                      </div>
-                    )}
-
                     <article className={`rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] w-full ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
                       {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{senderName ?? active?.name}</div>}
                       <div className="text-[13px] leading-[1.55]">{message.text}</div>
                       <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                     </article>
-
-                    {!own && (
-                      <div className="absolute left-[100%] ml-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.08)] rounded-lg p-1 border border-line whitespace-nowrap z-10">
-                        <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="Reply" title="Reply"><Reply size={14} /></button>
-                        <button className="p-1 hover:bg-cream rounded text-[#8c9891] hover:text-ink transition-colors" aria-label="React" title="React"><SmilePlus size={14} /></button>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
