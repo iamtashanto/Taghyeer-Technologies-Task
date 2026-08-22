@@ -366,13 +366,13 @@ export default function ChatPage() {
 
         <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d] max-[800px]:hidden">Conversations<button className="grid h-[25px] w-[25px] place-items-center rounded-[7px] border border-[#405049] bg-transparent text-lime" onClick={() => setGroupOpen((open) => !open)} aria-label="Create group"><Plus size={14} /></button></div>
 
-        <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a] max-[800px]:hidden"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find someone..." className="w-full border-0 bg-transparent text-[12px] text-cream outline-none" /></div>
+        <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a] max-[800px]:hidden"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={groupOpen ? "Search to add members..." : "Find someone..."} className="w-full border-0 bg-transparent text-[12px] text-cream outline-none" /></div>
 
         {groupOpen && (
           <form className="mx-[4px] mb-[15px] grid gap-[8px] rounded-[10px] border border-[#3b4842] bg-[#23312c] p-[12px]" onSubmit={createGroup}>
             <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" className="w-full rounded-[6px] border border-[#506058] bg-transparent p-[8px] text-[11px] text-cream outline-none" />
-            
-            {groupMembers.length > 0 && (
+
+            {groupMembers.length > 0 ? (
               <div className="flex flex-wrap gap-[5px] mt-[2px]">
                 {groupMembers.map(m => (
                   <span key={m.id} className="flex items-center gap-[5px] bg-[#3b4842] rounded-[4px] p-[3px_6px] text-[10px] text-cream">
@@ -381,9 +381,14 @@ export default function ChatPage() {
                   </span>
                 ))}
               </div>
+            ) : (
+              <div className="bg-[#31453e] rounded-[6px] p-[10px] mt-[4px] text-center">
+                <p className="text-lime text-[11px] font-extrabold mb-[4px]">Step 1: Search above ⬆️</p>
+                <p className="text-[#9daa9f] text-[10px]">Use the search bar to find and select members.</p>
+              </div>
             )}
-            
-            <small className="text-[10px] text-[#9daa9f]">{groupMembers.length ? `${groupMembers.length} selected. Search above to add.` : "Search above to select members."}</small>
+
+            <small className="text-[10px] text-[#9daa9f]">{groupMembers.length ? `${groupMembers.length} selected. Search above to add more.` : ""}</small>
             <button className="inline-flex items-center justify-center rounded-[7px] bg-lime p-[9px] text-[11px] font-extrabold text-ink" disabled={busy}>Create group</button>
           </form>
         )}
