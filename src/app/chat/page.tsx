@@ -492,9 +492,14 @@ export default function ChatPage() {
         ) : (
           <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
             {conversations.map((item) => (
-              <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
-                <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}</span>
-                <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{item.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{item.lastMessage?.text ?? "No messages yet"}</span></span>
+              <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
+                <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
+                  {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{item.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{item.lastMessage?.text ?? "No messages yet"}</span></span>
+                {item.unreadCount ? (
+                  <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-lime px-[5px] text-[10px] font-bold text-ink shrink-0 shadow-[0_0_0_3px_var(--tw-colors-ink)]">{item.unreadCount}</span>
+                ) : null}
               </button>
             ))}
           </div>
