@@ -25,6 +25,7 @@ export type Message = {
   text: string;
   senderId: string;
   createdAt: string;
+  conversationId?: string;
   sender?: User;
 };
 
@@ -47,17 +48,13 @@ async function request<T>(
   if (!response.ok)
     throw new Error(
       (body as { detail?: string; message?: string })?.detail ??
-        (body as { message?: string })?.message ??
-        `Request failed (${response.status})`,
+      (body as { message?: string })?.message ??
+      `Request failed (${response.status})`,
     );
   return body as T;
 }
 
-/**
- * Unwraps common API envelope keys.
- * Tries: data, items, results, conversations, messages, users
- * Falls back to the raw value if none match.
- */
+
 function unwrap<T>(value: Json | null): T {
   if (value && !Array.isArray(value) && typeof value === "object") {
     const record = value as Record<string, unknown>;
@@ -119,14 +116,14 @@ export function normalizeMessage(value: unknown): Message {
 
   const senderId = String(
     item.senderId ??
-      item.sender_id ??
-      item.userId ??
-      item.user_id ??
-      item.sender ??
-      (typeof senderRaw === "string" ? senderRaw : undefined) ??
-      (senderObj as Record<string, unknown> | undefined)?.id ??
-      (senderObj as Record<string, unknown> | undefined)?._id ??
-      "",
+    item.sender_id ??
+    item.userId ??
+    item.user_id ??
+    item.sender ??
+    (typeof senderRaw === "string" ? senderRaw : undefined) ??
+    (senderObj as Record<string, unknown> | undefined)?.id ??
+    (senderObj as Record<string, unknown> | undefined)?._id ??
+    "",
   );
 
   return {
@@ -136,20 +133,15 @@ export function normalizeMessage(value: unknown): Message {
     senderId,
     createdAt: String(
       item.createdAt ??
-        item.created_at ??
-        item.timestamp ??
-        new Date().toISOString(),
+      item.created_at ??
+      item.timestamp ??
+      new Date().toISOString(),
     ),
     sender: senderObj ? normalizeUser(senderObj) : undefined,
   };
 }
 
-/**
- * Normalizes a conversation object from the API.
- * Handles both direct and group conversations.
- * For direct conversations, derives the name from the other participant
- * if the API does not provide a name field.
- */
+
 export function normalizeConversation(value: unknown, currentUserId?: string): Conversation {
   if (!value || typeof value !== "object") {
     return { id: "", name: "Conversation", type: "direct", participants: [] };
@@ -199,11 +191,6 @@ export function normalizeConversation(value: unknown, currentUserId?: string): C
   const isGroup = item.type === "group" || item.isGroup === true;
   const type: "direct" | "group" = isGroup ? "group" : "direct";
 
-  // Name resolution:
-  // 1. Explicit name/title field (always used for groups)
-  // 2. otherUserName from API
-  // 3. For direct: find the other participant who isn't the current user
-  // 4. Fall back to first participant name
   let name = String(item.name ?? item.title ?? item.otherUserName ?? item.conversationName ?? "");
   if (!name && !isGroup) {
     const other =
