@@ -429,7 +429,7 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="grid h-[100dvh] overflow-hidden grid-cols-[280px_1fr] bg-cream max-[800px]:grid-cols-1">
+    <main className="h-[100dvh] overflow-hidden bg-cream grid min-[801px]:grid-cols-[280px_1fr] max-[800px]:grid-cols-1">
       <Sidebar
         session={session}
         conversations={conversations}
@@ -456,7 +456,7 @@ export default function ChatPage() {
         logout={logout}
       />
 
-      <section className="flex min-w-0 flex-col h-full overflow-hidden">
+      <section className={`flex min-w-0 flex-col h-full overflow-hidden ${active ? 'max-[800px]:flex' : 'max-[800px]:hidden'}`}>
         <ChatHeader
           session={session}
           active={active}
@@ -478,6 +478,7 @@ export default function ChatPage() {
           addingMember={addingMember}
           loadingConversations={loadingConversations}
           openDirect={openDirect}
+          onBack={() => handleSetActive(null)}
         />
 
         <MessageList

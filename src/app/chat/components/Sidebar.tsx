@@ -40,12 +40,12 @@ export function Sidebar({
   if (!session) return null;
 
   return (
-    <aside className="flex flex-col bg-ink px-[18px] pt-[25px] pb-[25px] text-cream max-[800px]:min-h-0 max-[800px]:p-[17px]">
+    <aside className={`flex flex-col bg-ink px-[18px] pt-[25px] pb-[25px] text-cream max-[800px]:min-h-0 max-[800px]:p-[17px] ${active ? 'max-[800px]:hidden' : ''}`}>
       <Link className="mx-[10px] mb-[42px] flex items-center max-[800px]:mb-[20px]" href="/">
         <img src="/logo.png" alt="Relay Logo" className="h-[31px] w-auto object-contain" />
       </Link>
 
-      <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d] max-[800px]:hidden">
+      <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d]">
         Conversations
         <button className="grid h-[25px] w-[25px] place-items-center rounded-[7px] border border-[#405049] bg-transparent text-lime" onClick={() => { setGroupOpen((open) => !open); setQuery(""); }} aria-label="Create group">
           <Plus size={14} />
@@ -53,7 +53,7 @@ export function Sidebar({
       </div>
 
       {!groupOpen && (
-        <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a] max-[800px]:hidden">
+        <div className="mx-[4px] mb-[20px] flex items-center gap-[8px] rounded-[9px] border border-[#3b4842] p-[10px_12px] text-[#87928a]">
           <Search size={14} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find someone..." className="w-full border-0 bg-transparent text-[12px] text-cream outline-none" />
         </div>
@@ -108,11 +108,11 @@ export function Sidebar({
       )}
 
       {!groupOpen && query && (
-        <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
+        <div className="flex flex-col gap-[3px] overflow-auto">
           {searching ? (
             <>
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] animate-pulse max-[800px]:min-w-[155px]">
+                <div key={i} className="flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] animate-pulse">
                   <div className="h-[35px] w-[35px] shrink-0 rounded-[12px_12px_12px_4px] bg-[#31453e]"></div>
                   <div className="flex-1 space-y-[6px] py-[4px]">
                     <div className="h-[12px] w-[60%] rounded bg-[#31453e]"></div>
@@ -122,7 +122,7 @@ export function Sidebar({
               ))}
             </>
           ) : results.length ? results.map((user) => (
-            <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${groupMembers.some((member) => member.id === user.id) ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={user.id} onClick={() => groupOpen ? toggleMember(user) : openDirect(user)}>
+            <button className={`flex w-full gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${groupMembers.some((member) => member.id === user.id) ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"}`} key={user.id} onClick={() => groupOpen ? toggleMember(user) : openDirect(user)}>
               <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{user.name.slice(0, 1).toUpperCase()}</span>
               <span className="min-w-0"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{user.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{groupOpen && groupMembers.some((member) => member.id === user.id) ? "Added to group" : (user.phone ?? "Start a conversation")}</span></span>
             </button>
@@ -131,9 +131,9 @@ export function Sidebar({
       )}
 
       {loadingConversations ? (
-        <div className="flex flex-col gap-[6px] mx-[4px] animate-pulse max-[800px]:flex-row">
+        <div className="flex flex-col gap-[6px] mx-[4px] animate-pulse">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex w-full gap-[11px] rounded-[10px] bg-[#293732] p-[12px_10px] max-[800px]:min-w-[155px]">
+            <div key={i} className="flex w-full gap-[11px] rounded-[10px] bg-[#293732] p-[12px_10px]">
               <div className="h-[35px] w-[35px] shrink-0 rounded-[12px_12px_12px_4px] bg-[#31453e]"></div>
               <div className="flex-1 space-y-[6px] py-[4px]">
                 <div className="h-[10px] w-[70%] rounded bg-[#31453e]"></div>
@@ -143,7 +143,7 @@ export function Sidebar({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
+        <div className="flex flex-col gap-[3px] overflow-auto">
           {[...conversations]
             .sort((a, b) => {
               const aTime = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
@@ -156,7 +156,7 @@ export function Sidebar({
                 new Date(item.lastMessage.createdAt).getTime() > (readTimestamps[item.id] || 0);
 
               return (
-                <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setShowScrollButton(false); handleSetActive(item); }}>
+                <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"}`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setShowScrollButton(false); handleSetActive(item); }}>
                   <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
                     {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
                   </span>
@@ -172,7 +172,7 @@ export function Sidebar({
         </div>
       )}
 
-      <div className="mt-auto flex items-center gap-[10px] border-t border-[#35423d] p-[15px_10px_5px] max-[800px]:hidden">
+      <div className="mt-auto flex items-center gap-[10px] border-t border-[#35423d] p-[15px_10px_5px]">
         <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">{session.user.name.slice(0, 1).toUpperCase()}</span>
         <span>
           <b onClick={() => setProfileOpen(true)} className="cursor-pointer hover:underline">{session.user.name}</b>

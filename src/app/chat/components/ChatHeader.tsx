@@ -1,5 +1,5 @@
 import React, { FormEvent } from "react";
-import { MessageCircle, Users, Crown } from "lucide-react";
+import { MessageCircle, Users, Crown, ArrowLeft } from "lucide-react";
 import { Conversation, User } from "@/lib/api";
 
 type Session = { token: string; user: User };
@@ -25,12 +25,13 @@ interface ChatHeaderProps {
   addingMember: boolean;
   loadingConversations: boolean;
   openDirect: (user: User) => void;
+  onBack: () => void;
 }
 
 export function ChatHeader({
   session, active, busy, isAdmin, activeAdminIds, showParticipants, setShowParticipants,
   renameValue, setRenameValue, renameGroup, leaveGroup, addToGroup, removeFromGroup, promoteToAdmin,
-  addMemberQuery, setAddMemberQuery, addMemberResults, addingMember, loadingConversations, openDirect
+  addMemberQuery, setAddMemberQuery, addMemberResults, addingMember, loadingConversations, openDirect, onBack
 }: ChatHeaderProps) {
   const isGroup = active?.type === "group";
 
@@ -39,6 +40,7 @@ export function ChatHeader({
       <header className="flex min-h-[82px] items-center justify-between border-b border-line p-[16px_34px] max-[800px]:p-[15px_18px]">
         {active ? (
           <div className="flex items-center gap-[13px]">
+            <button onClick={onBack} className="min-[801px]:hidden grid h-[35px] w-[35px] place-items-center rounded-[8px] bg-[#edf0e8] hover:bg-[#e1f2e2] text-ink shrink-0" aria-label="Back"><ArrowLeft size={16} /></button>
             <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime">
               {active.type === "group" ? <Users size={15} /> : active.name.slice(0, 1).toUpperCase()}
             </span>
