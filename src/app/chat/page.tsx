@@ -59,12 +59,28 @@ export default function ChatPage() {
   const activeAdminIds = useMemo(() => active?.admins ?? [], [active]);
   const isAdmin = !!session && activeAdminIds.includes(session.user.id);
 
+  function handleSetActive(item: Conversation | null) {
+    setActive(item);
+    if (item) {
+      window.history.replaceState(null, '', `?chat=${item.id}`);
+    } else {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }
+
   async function refreshConversations(currentToken: string, currentUserId?: string) {
     try {
       const next = await api.conversations(currentToken, currentUserId);
       setConversations(next);
-      if (activeIdRef.current) {
-        const latestActive = next.find((item) => item.id === activeIdRef.current);
+      
+      const params = new URLSearchParams(window.location.search);
+      const urlChatId = params.get("chat");
+      
+      let targetId = activeIdRef.current;
+      if (!targetId && urlChatId) targetId = urlChatId;
+
+      if (targetId) {
+        const latestActive = next.find((item) => item.id === targetId);
         if (latestActive) setActive(latestActive);
       }
     } finally {
@@ -232,7 +248,7 @@ export default function ChatPage() {
         next = { ...next, name: user.name, participants: next.participants.length ? next.participants : [session.user, user] };
       }
       setConversations((current) => [next, ...current.filter((item) => item.id !== next.id)]);
-      setActive(next);
+      handleSetActive(next);
       setQuery("");
     } catch (e) {
       setError((e as Error).message);
@@ -253,7 +269,7 @@ export default function ChatPage() {
     try {
       const next = await api.createGroup(groupName.trim(), groupMembers.map((item) => item.id), session.token, session.user.id);
       setConversations((current) => [next, ...current]);
-      setActive(next);
+      handleSetActive(next);
       setGroupName("");
       setGroupMembers([]);
       setGroupOpen(false);
@@ -339,7 +355,7 @@ export default function ChatPage() {
       await api.removeParticipant(active.id, session.user.id, session.token);
       const next = conversations.filter((item) => item.id !== active.id);
       setConversations(next);
-      setActive(next[0] ?? null);
+      handleSetActive(next[0] ?? null);
       setMessages([]);
     } catch (e) {
       setError((e as Error).message);
@@ -375,7 +391,7 @@ export default function ChatPage() {
   function logout() {
     window.localStorage.removeItem("relay-session");
     setSession(null);
-    setActive(null);
+    handleSetActive(null);
   }
 
   if (checkingSession && !session) {
@@ -516,7 +532,7 @@ export default function ChatPage() {
                 new Date(item.lastMessage.createdAt).getTime() > (readTimestamps[item.id] || 0);
                 
               return (
-                <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
+                <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; handleSetActive(item); }}>
                   <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
                     {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
                   </span>
@@ -557,6 +573,9 @@ export default function ChatPage() {
                   <span className="grid h-[18px] w-[18px] place-items-center rounded-[4px] bg-[#31453e] text-[9px] font-extrabold text-lime">{p.name.slice(0, 1).toUpperCase()}</span>
                   <span>{p.name} {p.id === session?.user.id && "(You)"}</span>
                   {activeAdminIds.includes(p.id) && <Crown size={11} className="text-[#d9a05b]" aria-label="Admin" />}
+                  {p.id !== session?.user.id && (
+                    <button onClick={() => openDirect(p)} className="ml-[4px] text-[#8c9891] hover:text-teal transition-colors" title="Message" disabled={busy}><MessageCircle size={13} /></button>
+                  )}
                   {isAdmin && p.id !== session?.user.id && (
                     <div className="flex items-center ml-[4px] border-l border-[#dfe2da] pl-[8px] gap-[6px]">
                       {!activeAdminIds.includes(p.id) && (
