@@ -32,11 +32,11 @@ export default function ChatPage() {
   const [showParticipants, setShowParticipants] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
 
-  // Add Member State
   const [addMemberQuery, setAddMemberQuery] = useState("");
   const [addMemberResults, setAddMemberResults] = useState<User[]>([]);
   const [addingMember, setAddingMember] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [readTimestamps, setReadTimestamps] = useState<Record<string, number>>({});
 
   const endRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
@@ -99,6 +99,25 @@ export default function ChatPage() {
     activeIdRef.current = activeId;
     setShowParticipants(false);
   }, [activeId]);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("relay-read-timestamps");
+    if (stored) {
+      try {
+        setReadTimestamps(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeId) {
+      setReadTimestamps((prev) => {
+        const next = { ...prev, [activeId]: Date.now() };
+        window.localStorage.setItem("relay-read-timestamps", JSON.stringify(next));
+        return next;
+      });
+    }
+  }, [activeId, messages.length]);
 
   useEffect(() => {
     if (!session || !activeId) return;
@@ -491,17 +510,25 @@ export default function ChatPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-[3px] overflow-auto max-[800px]:flex-row">
-            {conversations.map((item) => (
-              <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
-                <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
-                  {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1"><span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-extrabold">{item.name}</span><span className="mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#8c9991]">{item.lastMessage?.text ?? "No messages yet"}</span></span>
-                {item.unreadCount ? (
-                  <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-lime px-[5px] text-[10px] font-bold text-ink shrink-0 shadow-[0_0_0_3px_var(--tw-colors-ink)]">{item.unreadCount}</span>
-                ) : null}
-              </button>
-            ))}
+            {conversations.map((item) => {
+              const isUnread = item.lastMessage && 
+                item.lastMessage.senderId !== session.user.id && 
+                new Date(item.lastMessage.createdAt).getTime() > (readTimestamps[item.id] || 0);
+                
+              return (
+                <button className={`flex w-full items-center gap-[11px] rounded-[10px] border-0 p-[12px_10px] text-left text-[#d3d9d2] ${active?.id === item.id ? "bg-[#293732]" : "bg-transparent hover:bg-[#293732]"} max-[800px]:min-w-[155px]`} key={item.id} onClick={() => { shouldStickToBottom.current = true; setActive(item); }}>
+                  <span className="grid h-[35px] w-[35px] shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-[#31453e] text-[12px] font-extrabold text-lime relative">
+                    {item.type === "group" ? <Users size={15} /> : item.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1"><span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[12px] ${isUnread ? "font-extrabold text-lime" : "font-bold"}`}>{item.name}</span><span className={`mt-[4px] block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] ${isUnread ? "text-cream font-bold" : "text-[#8c9991]"}`}>{item.lastMessage?.text ?? "No messages yet"}</span></span>
+                  {item.unreadCount ? (
+                    <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-lime px-[5px] text-[10px] font-bold text-ink shrink-0 shadow-[0_0_0_3px_var(--tw-colors-ink)]">{item.unreadCount}</span>
+                  ) : isUnread ? (
+                    <span className="h-[8px] w-[8px] rounded-full bg-lime shadow-[0_0_0_3px_var(--tw-colors-ink)] shrink-0"></span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -569,7 +596,9 @@ export default function ChatPage() {
 
         {active && isGroup && (
           <div className="flex flex-wrap gap-[10px] border-b border-line bg-[#f2f3ee] p-[12px_20px]">
-            <form onSubmit={renameGroup} className="flex items-center gap-[8px]"><input placeholder="Rename group" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} disabled={!isAdmin || busy} className="h-[32px] rounded-[8px] border border-[#c8cec2] bg-white px-[10px] text-[12px]" /><button type="submit" className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" disabled={!isAdmin || !renameValue.trim() || busy}>Rename</button></form>
+            {isAdmin && (
+              <form onSubmit={renameGroup} className="flex items-center gap-[8px]"><input placeholder="Rename group" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} disabled={busy} className="h-[32px] rounded-[8px] border border-[#c8cec2] bg-white px-[10px] text-[12px]" /><button type="submit" className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#bcc5b8] bg-white px-[10px] text-[11px] font-bold text-ink" disabled={!renameValue.trim() || busy}>Rename</button></form>
+            )}
             <button className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] border border-[#eab0a4] bg-[#fff4f1] px-[10px] text-[11px] font-bold text-[#9f3f31]" onClick={leaveGroup} disabled={busy}>Leave group</button>
           </div>
         )}
