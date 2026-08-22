@@ -414,7 +414,9 @@ export default function ChatPage() {
     return (
       <main className="grid min-h-screen place-items-center bg-paper p-6">
         <form className="w-[min(440px,100%)] border border-line bg-cream p-[42px] shadow-relay max-[500px]:p-[28px]" onSubmit={login}>
-          <Link className="flex items-center gap-[10px] text-[18px] font-extrabold tracking-[-0.04em]" href="/"><span className="grid h-[31px] w-[31px] place-items-center rounded-[10px_10px_10px_3px] bg-ink font-dmmono text-[13px] text-lime">r/</span> relay</Link>
+          <Link className="flex items-center" href="/">
+            <img src="/logo.png" alt="Relay Logo" className="h-[40px] w-auto object-contain" />
+          </Link>
           <h1 className="mt-[50px] mb-[12px] max-w-[670px] text-[42px] leading-[0.96] tracking-[-0.075em]">Make room for a good conversation.</h1>
           <p className="text-[13px] leading-[1.7] text-muted">Sign in with your phone number. New numbers are registered automatically.</p>
           {error && <div className="mt-[15px] mx-[25px] p-[12px_15px] border border-[#f3b8ad] rounded-[9px] text-[#9a392c] bg-[#fff1ee] text-[12px]">{error}</div>}
@@ -475,6 +477,7 @@ export default function ChatPage() {
           addMemberResults={addMemberResults}
           addingMember={addingMember}
           loadingConversations={loadingConversations}
+          openDirect={openDirect}
         />
 
         <MessageList

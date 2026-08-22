@@ -41,8 +41,8 @@ export function Sidebar({
 
   return (
     <aside className="flex flex-col bg-ink px-[18px] pt-[25px] pb-[25px] text-cream max-[800px]:min-h-0 max-[800px]:p-[17px]">
-      <Link className="mx-[10px] mb-[42px] flex items-center gap-[10px] text-[18px] font-extrabold tracking-[-0.04em] max-[800px]:mb-[20px]" href="/">
-        <span className="grid h-[31px] w-[31px] place-items-center rounded-[10px_10px_10px_3px] bg-lime font-dmmono text-[13px] text-ink">r/</span> relay
+      <Link className="mx-[10px] mb-[42px] flex items-center max-[800px]:mb-[20px]" href="/">
+        <img src="/logo.png" alt="Relay Logo" className="h-[31px] w-auto object-contain" />
       </Link>
 
       <div className="mx-[10px] mb-[14px] flex items-center justify-between font-dmmono text-[10px] uppercase tracking-[0.1em] text-[#77847d] max-[800px]:hidden">

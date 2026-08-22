@@ -24,12 +24,13 @@ interface ChatHeaderProps {
   addMemberResults: User[];
   addingMember: boolean;
   loadingConversations: boolean;
+  openDirect: (user: User) => void;
 }
 
 export function ChatHeader({
   session, active, busy, isAdmin, activeAdminIds, showParticipants, setShowParticipants,
   renameValue, setRenameValue, renameGroup, leaveGroup, addToGroup, removeFromGroup, promoteToAdmin,
-  addMemberQuery, setAddMemberQuery, addMemberResults, addingMember, loadingConversations
+  addMemberQuery, setAddMemberQuery, addMemberResults, addingMember, loadingConversations, openDirect
 }: ChatHeaderProps) {
   const isGroup = active?.type === "group";
 
@@ -85,6 +86,9 @@ export function ChatHeader({
                 <span className="grid h-[18px] w-[18px] place-items-center rounded-[4px] bg-[#31453e] text-[9px] font-extrabold text-lime">{p.name.slice(0, 1).toUpperCase()}</span>
                 <span>{p.name} {p.id === session?.user.id && "(You)"}</span>
                 {activeAdminIds.includes(p.id) && <Crown size={11} className="text-[#d9a05b]" aria-label="Admin" />}
+                {p.id !== session?.user.id && (
+                  <button onClick={() => openDirect(p)} className="ml-[4px] text-[#8c9891] hover:text-teal transition-colors" title="Message" disabled={busy}><MessageCircle size={13} /></button>
+                )}
                 {isAdmin && p.id !== session?.user.id && (
                   <div className="flex items-center ml-[4px] border-l border-[#dfe2da] pl-[8px] gap-[6px]">
                     {!activeAdminIds.includes(p.id) && (
