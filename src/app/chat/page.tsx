@@ -569,10 +569,16 @@ export default function ChatPage() {
             <>
               {messages.map((message) => {
                 const own = message.senderId === session.user.id || message.senderId === "me";
+                let senderName = message.sender?.name;
+                if (!senderName) {
+                  const participant = active.participants.find(p => p.id === message.senderId);
+                  if (participant) senderName = participant.name;
+                }
+                
                 return (
                   <div className={`my-[15px] flex ${own ? "justify-end" : ""}`} key={message.id}>
                     <article className={`max-w-[min(560px,78%)] rounded-[4px_16px_16px_16px] bg-[#edf0e8] p-[13px_16px] ${own ? "rounded-[16px_4px_16px_16px] bg-teal text-white" : ""}`}>
-                      {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{message.sender?.name ?? active.name}</div>}
+                      {!own && <div className="mb-[5px] text-[10px] font-extrabold text-teal">{senderName ?? active.name}</div>}
                       <div className="text-[13px] leading-[1.55]">{message.text}</div>
                       <div className={`mt-[7px] font-dmmono text-[9px] ${own ? "text-[#b9d6ce]" : "text-[#8c9891]"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                     </article>
